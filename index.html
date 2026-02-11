@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloudflare Outage Animation (Dark Theme)</title>
+    <title>Cloudflare Outage Animation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --green: #81C784;
@@ -17,43 +20,81 @@
             --dns-purple: #BA68C8;
             --border: #333333;
         }
-        body { 
-            font-family: "Inter", sans-serif; 
-            background: var(--bg); 
-            color: var(--text); 
-            margin: 0; 
+        body {
+            font-family: "DM Sans", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
             padding: 20px;
-            display: flex; 
-            flex-direction: column; 
+            display: flex;
+            flex-direction: column;
             align-items: center;
         }
 
         #stage {
             position: relative;
-            width: 940px; 
-            height: 560px; 
+            width: 940px;
+            height: 560px;
             border: 1px solid var(--border);
             border-radius: 12px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5), 0 0 80px -20px rgba(129, 199, 132, 0.15);
             background: var(--stage-bg);
             overflow: hidden;
+            transition: box-shadow 1s ease;
         }
+        #stage.stage-error {
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5), 0 0 80px -20px rgba(229, 115, 115, 0.25);
+        }
+
+        /* Dot grid background */
+        #stage::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px);
+            background-size: 24px 24px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Vignette overlay for failure flash */
+        #vignette {
+            position: absolute;
+            inset: 0;
+            box-shadow: inset 0 0 150px rgba(229, 115, 115, 0.35);
+            opacity: 0;
+            pointer-events: none;
+            z-index: 50;
+            border-radius: 12px;
+            transition: opacity 0.1s ease-out;
+        }
+
+        /* Shake animation */
+        @keyframes shake {
+            0%, 100% { transform: translate(0, 0); }
+            15% { transform: translate(-3px, 1px); }
+            35% { transform: translate(3px, -1px); }
+            55% { transform: translate(-2px, 2px); }
+            75% { transform: translate(2px, -1px); }
+        }
+        .shaking { animation: shake 0.35s ease-out; }
 
         /* Legend */
         #legend {
             position: absolute;
             top: 20px;
             left: 20px;
-            background: rgba(40, 40, 40, 0.9);
+            background: rgba(40, 40, 40, 0.85);
             border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 8px 12px;
+            border-radius: 8px;
+            padding: 10px 14px;
             font-size: 10px;
             z-index: 5;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            backdrop-filter: blur(4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            backdrop-filter: blur(8px);
         }
-        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-weight: 600; color: var(--text-muted); }
+        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.3px; }
+        .legend-item:last-child { margin-bottom: 0; }
         .dot { width: 8px; height: 8px; border-radius: 50%; }
 
         .node {
@@ -63,8 +104,23 @@
             transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 10;
         }
-        .node img { width: 60px; height: 60px; transition: filter 0.5s; }
-        .node span { display: block; font-size: 11px; font-weight: 700; margin-top: 5px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text); }
+        .node img {
+            width: 60px;
+            height: 60px;
+            transition: filter 0.5s;
+        }
+        .node:hover img {
+            filter: drop-shadow(0 0 12px rgba(255,255,255,0.12));
+        }
+        .node span {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            margin-top: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text);
+        }
 
         /* Positions */
         #user { left: 70px; top: 330px; }
@@ -73,27 +129,52 @@
         #api { left: 420px; top: 100px; }
         #admin { left: 770px; top: 100px; }
 
-        /* Connections */
+        /* Connections — animated dashes */
         .connection {
             position: absolute;
-            background: #444;
             height: 2px;
             z-index: 1;
+            background: none;
         }
+        .connection::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: repeating-linear-gradient(90deg, #555 0, #555 6px, transparent 6px, transparent 12px);
+            animation: dash-flow-h 0.8s linear infinite;
+        }
+        @keyframes dash-flow-h {
+            to { background-position: 12px 0; }
+        }
+
         .connection-label {
             position: absolute;
-            font-size: 10px;
-            font-weight: bold;
-            color: #777;
+            font-size: 9px;
+            font-weight: 700;
+            color: #666;
             background: var(--stage-bg);
-            padding: 0 5px;
+            padding: 2px 6px;
             text-transform: uppercase;
+            letter-spacing: 1px;
+            border-radius: 3px;
+            z-index: 2;
         }
-        
+
         #link-user-edge { left: 150px; top: 360px; width: 270px; }
         #link-edge-origin { left: 500px; top: 360px; width: 270px; }
         #link-admin-api { left: 500px; top: 130px; width: 270px; }
-        #link-api-edge { left: 470px; top: 160px; width: 2px; height: 170px; }
+
+        /* Vertical connection */
+        #link-api-edge {
+            left: 470px; top: 160px; width: 2px; height: 170px;
+        }
+        #link-api-edge::before {
+            background-image: repeating-linear-gradient(180deg, #555 0, #555 6px, transparent 6px, transparent 12px);
+            animation: dash-flow-v 0.8s linear infinite;
+        }
+        @keyframes dash-flow-v {
+            to { background-position: 0 12px; }
+        }
 
         /* DNS Record Visual */
         #dns-record {
@@ -102,29 +183,36 @@
             top: 185px;
             background: #252525;
             border: 2px solid var(--dns-purple);
-            border-radius: 6px;
+            border-radius: 8px;
             padding: 10px;
-            font-family: monospace;
+            font-family: "JetBrains Mono", monospace;
             font-size: 11px;
-            box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
             z-index: 5;
             transition: all 0.3s;
             width: 140px;
             color: var(--text);
         }
         .record-title { color: var(--dns-purple); font-weight: bold; border-bottom: 1px solid #333; margin-bottom: 6px; padding-bottom: 4px; display: flex; justify-content: space-between; }
-        .proxy-status { 
-            display: flex; 
-            align-items: center; 
-            gap: 4px; 
-            font-weight: bold; 
-            color: var(--cf-orange); 
+        .proxy-status {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-weight: bold;
+            color: var(--cf-orange);
             margin-top: 4px;
             padding-top: 4px;
             border-top: 1px dashed #333;
         }
 
-        /* Traffic Packets */
+        /* DNS flash effect */
+        @keyframes dns-flash {
+            0% { box-shadow: 0 8px 20px rgba(0,0,0,0.4); }
+            50% { box-shadow: 0 8px 20px rgba(0,0,0,0.4), 0 0 20px rgba(229, 115, 115, 0.3); }
+            100% { box-shadow: 0 8px 20px rgba(0,0,0,0.4); }
+        }
+
+        /* Traffic Packets with comet trail */
         .packet {
             position: absolute;
             width: 10px;
@@ -134,10 +222,10 @@
             top: -4px;
             offset-path: path('M 0 0 L 270 0');
             animation: flow 2s infinite linear;
-            box-shadow: 0 0 8px var(--green);
+            box-shadow: 0 0 8px var(--green), -8px 0 6px rgba(129, 199, 132, 0.35), -16px 0 4px rgba(129, 199, 132, 0.15);
         }
         #link-edge-origin .packet { offset-path: path('M 0 0 L 270 0'); }
-        
+
         @keyframes flow {
             0% { offset-distance: 0%; opacity: 0; }
             10% { opacity: 1; }
@@ -155,7 +243,7 @@
             left: -3px;
             offset-path: path('M 0 0 L 0 170');
             animation: pulse-flow 3s infinite ease-in-out;
-            box-shadow: 0 0 8px var(--cf-orange);
+            box-shadow: 0 0 8px var(--cf-orange), 0 -8px 6px rgba(255, 183, 77, 0.3), 0 -16px 4px rgba(255, 183, 77, 0.12);
         }
         @keyframes pulse-flow {
             0% { offset-distance: 0%; opacity: 0; }
@@ -166,8 +254,12 @@
         /* Failure Styles */
         .failed img { filter: grayscale(1) brightness(0.5) sepia(1) hue-rotate(-50deg) saturate(5); }
         .failed span { color: var(--red); }
-        .failed-link { background: var(--red) !important; opacity: 0.2; }
-        
+        .failed-link { opacity: 0.15; }
+        .failed-link::before {
+            background-image: repeating-linear-gradient(90deg, var(--red) 0, var(--red) 6px, transparent 6px, transparent 12px) !important;
+            animation: none !important;
+        }
+
         .x-mark {
             position: absolute;
             font-size: 40px;
@@ -176,31 +268,39 @@
             display: none;
             z-index: 20;
             pointer-events: none;
-            text-shadow: 0 0 10px rgba(255, 82, 82, 0.5);
+            text-shadow: 0 0 15px rgba(255, 82, 82, 0.5);
+        }
+        @keyframes x-pop {
+            0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+            60% { transform: scale(1.2) rotate(5deg); opacity: 1; }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
         }
 
         /* Tooltips */
         .node .tooltip {
             visibility: hidden;
-            width: 140px;
-            background-color: #444;
+            width: 160px;
+            background-color: rgba(45, 45, 45, 0.95);
             color: #fff;
             text-align: center;
-            border-radius: 6px;
-            padding: 8px;
+            border-radius: 8px;
+            padding: 10px 12px;
             position: absolute;
             z-index: 30;
             bottom: 125%;
             left: 50%;
-            margin-left: -70px;
+            margin-left: -80px;
             opacity: 0;
-            transition: opacity 0.3s;
+            transition: opacity 0.2s, transform 0.2s;
+            transform: translateY(4px);
             font-size: 10px;
-            line-height: 1.4;
+            line-height: 1.5;
             pointer-events: none;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.06);
         }
-        .node:hover .tooltip { visibility: visible; opacity: 1; }
+        .node:hover .tooltip { visibility: visible; opacity: 1; transform: translateY(0); }
         .node .tooltip::after {
             content: "";
             position: absolute;
@@ -209,7 +309,7 @@
             margin-left: -5px;
             border-width: 5px;
             border-style: solid;
-            border-color: #444 transparent transparent transparent;
+            border-color: rgba(45, 45, 45, 0.95) transparent transparent transparent;
         }
 
         /* Live Indicator */
@@ -230,48 +330,103 @@
         }
         .indicator-down { background-color: var(--red) !important; box-shadow: 0 0 12px var(--red) !important; animation: none !important; }
 
+        /* Step Progress */
+        #step-progress {
+            position: absolute;
+            bottom: 62px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 20;
+        }
+        .step-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #333;
+            border: 1.5px solid #555;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .step-dot.active {
+            background: var(--green);
+            border-color: var(--green);
+            box-shadow: 0 0 8px rgba(129, 199, 132, 0.5);
+        }
+        .step-dot.error {
+            background: var(--red);
+            border-color: var(--red);
+            box-shadow: 0 0 8px rgba(229, 115, 115, 0.5);
+        }
+
         /* Status Ticker */
-        #status-text { 
+        #status-text {
             position: absolute;
             bottom: 75px;
             width: 100%;
             text-align: center;
-            font-size: 16px; 
-            font-weight: 500; 
-            color: var(--text-muted); 
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-muted);
             height: 24px;
             z-index: 20;
             transition: opacity 0.3s, transform 0.3s;
+            letter-spacing: 0.2px;
         }
         .status-update { opacity: 0; transform: translateY(5px); }
 
-        #controls { 
+        #controls {
             position: absolute;
-            bottom: 30px;
+            bottom: 20px;
             width: 100%;
-            display: flex; 
+            display: flex;
             justify-content: center;
-            gap: 15px; 
+            gap: 15px;
             z-index: 20;
         }
         button {
-            padding: 8px 16px;
+            padding: 8px 18px;
             border: 1px solid #444;
-            border-radius: 6px;
+            border-radius: 8px;
             background: #333;
             color: white;
+            font-family: "DM Sans", sans-serif;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s;
             font-size: 13px;
+            letter-spacing: 0.3px;
         }
         button:hover { background: #444; border-color: #555; transform: translateY(-1px); }
         button:active { transform: translateY(0); }
+
+        #run-btn {
+            border-color: rgba(229, 115, 115, 0.4);
+            background: rgba(229, 115, 115, 0.08);
+            color: var(--red);
+        }
+        #run-btn:hover {
+            background: rgba(229, 115, 115, 0.18);
+            border-color: rgba(229, 115, 115, 0.6);
+        }
+        #run-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Vertical failed link override */
+        .failed-link-v::before {
+            background-image: repeating-linear-gradient(180deg, var(--red) 0, var(--red) 6px, transparent 6px, transparent 12px) !important;
+            animation: none !important;
+        }
     </style>
 </head>
 <body>
 
     <div id="stage">
+        <div id="vignette"></div>
+
         <!-- Legend -->
         <div id="legend">
             <div class="legend-item"><div class="dot" style="background:var(--green)"></div> Data Traffic</div>
@@ -334,6 +489,15 @@
         <div id="x-api" class="x-mark" style="left: 430px; top: 110px;">✕</div>
         <div id="x-admin" class="x-mark" style="left: 620px; top: 110px;">✕</div>
 
+        <!-- Step Progress -->
+        <div id="step-progress">
+            <div class="step-dot" id="sd-0"></div>
+            <div class="step-dot" id="sd-1"></div>
+            <div class="step-dot" id="sd-2"></div>
+            <div class="step-dot" id="sd-3"></div>
+            <div class="step-dot" id="sd-4"></div>
+        </div>
+
         <!-- UI Inside Stage -->
         <div id="status-text"><span id="live-indicator"></span><span id="text-target"></span></div>
         <div id="controls">
@@ -343,7 +507,6 @@
     </div>
 
     <script>
-        // --- CUSTOMIZE CONTENT HERE ---
         const CONTENT = {
             dnsName: "app.io",
             tooltips: {
@@ -354,11 +517,11 @@
                 admin: "Site Administrator managing Cloudflare settings."
             },
             steps: [
-                "Step 1: Normal Operation. API manages DNS record pointing to Edge.",
-                "Step 2: Cloudflare Edge goes DOWN. Traffic is blackholed.",
-                "Step 3: Control Plane (API) also goes DOWN. DNS management is frozen.",
-                "Step 4: Admin attempts to update DNS to point '{DNS}' to Origin...",
-                "Step 5: <span style='color:var(--red)'>FAILED.</span> API down. Proxy cannot be disabled. Traffic trapped."
+                "1: Normal Operation. API manages DNS record pointing to Edge.",
+                "2: Cloudflare Edge goes DOWN. Traffic is blackholed.",
+                "3: Control Plane (API) also goes DOWN. DNS management is frozen.",
+                "4: Admin attempts to update DNS to point '{DNS}' to Origin...",
+                "5: <span style='color:var(--red)'>FAILED.</span> API down. Proxy cannot be disabled. Traffic trapped."
             ]
         };
 
@@ -380,7 +543,9 @@
             xApi: document.getElementById('x-api'),
             xAdmin: document.getElementById('x-admin'),
             adminLink: document.getElementById('link-admin-api'),
-            dnsBox: document.getElementById('dns-record')
+            dnsBox: document.getElementById('dns-record'),
+            vignette: document.getElementById('vignette'),
+            stage: document.getElementById('stage')
         };
 
         function initContent() {
@@ -391,6 +556,33 @@
             elements.adminTip.innerText = CONTENT.tooltips.admin;
             elements.dnsName.innerText = `NAME: ${CONTENT.dnsName}`;
             elements.statusText.innerHTML = CONTENT.steps[0];
+            setStep(0);
+        }
+
+        function setStep(index, isError = false) {
+            for (let i = 0; i < 5; i++) {
+                const dot = document.getElementById('sd-' + i);
+                dot.className = 'step-dot';
+                if (i < index) dot.classList.add(isError && i >= 1 ? 'error' : 'active');
+                if (i === index) dot.classList.add(isError ? 'error' : 'active');
+            }
+        }
+
+        function flashVignette() {
+            elements.vignette.style.opacity = '1';
+            setTimeout(() => { elements.vignette.style.opacity = '0'; }, 250);
+        }
+
+        function shakeStage() {
+            elements.stage.classList.add('shaking');
+            elements.stage.addEventListener('animationend', () => {
+                elements.stage.classList.remove('shaking');
+            }, { once: true });
+        }
+
+        function showX(el) {
+            el.style.display = 'block';
+            el.style.animation = 'x-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards';
         }
 
         async function updateStatus(text, isError = false) {
@@ -414,42 +606,59 @@
         async function runScenario() {
             const runBtn = document.getElementById('run-btn');
             runBtn.disabled = true;
-            runBtn.style.opacity = '0.5';
 
+            // Step 1
             await updateStatus(CONTENT.steps[0]);
+            setStep(0);
             await wait(3000);
 
+            // Step 2 — Edge fails
             await updateStatus(CONTENT.steps[1], true);
+            setStep(1, true);
             elements.edgeNode.classList.add('failed');
-            elements.xEdge.style.display = 'block';
+            showX(elements.xEdge);
+            flashVignette();
+            shakeStage();
+            elements.stage.classList.add('stage-error');
             elements.packets.forEach(p => p.style.display = 'none');
             document.getElementById('link-user-edge').classList.add('failed-link');
             document.getElementById('link-edge-origin').classList.add('failed-link');
             await wait(3000);
 
+            // Step 3 — API fails
             await updateStatus(CONTENT.steps[2], true);
+            setStep(2, true);
             elements.apiNode.classList.add('failed');
-            elements.xApi.style.display = 'block';
+            showX(elements.xApi);
+            flashVignette();
+            shakeStage();
             elements.pulses.forEach(p => p.style.display = 'none');
-            document.getElementById('link-api-edge').style.background = 'var(--red)';
-            document.getElementById('link-api-edge').style.opacity = '0.3';
+            document.getElementById('link-api-edge').classList.add('failed-link-v');
+            document.getElementById('link-api-edge').style.opacity = '0.15';
             await wait(3000);
 
+            // Step 4 — Admin attempt
             await updateStatus(CONTENT.steps[3]);
+            setStep(3, true);
             const adminPacket = document.createElement('div');
             adminPacket.className = 'packet';
             adminPacket.style.background = 'var(--admin-blue)';
+            adminPacket.style.boxShadow = '0 0 8px var(--admin-blue), 8px 0 6px rgba(100, 181, 246, 0.35), 16px 0 4px rgba(100, 181, 246, 0.15)';
             adminPacket.style.animation = 'flow 1.5s forwards linear';
             adminPacket.style.offsetPath = "path('M 270 0 L 0 0')";
             elements.adminLink.appendChild(adminPacket);
-            
+
             await wait(1000);
-            elements.xAdmin.style.display = 'block';
+            showX(elements.xAdmin);
+
+            // Step 5 — Failure
             await updateStatus(CONTENT.steps[4], true);
-            
+            setStep(4, true);
+            flashVignette();
             elements.dnsBox.style.borderColor = 'var(--red)';
-            elements.dnsBox.style.transform = 'scale(1.1)';
-            await wait(500);
+            elements.dnsBox.style.animation = 'dns-flash 0.6s ease';
+            elements.dnsBox.style.transform = 'scale(1.08)';
+            await wait(400);
             elements.dnsBox.style.transform = 'scale(1.0)';
         }
     </script>
