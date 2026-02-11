@@ -75,7 +75,7 @@
         #cf-group {
             left: 370px;
             top: 190px;
-            width: 230px;
+            width: 350px;
             height: 220px;
             border-color: rgba(255, 183, 77, 0.3);
             background: var(--cf-group-bg);
@@ -137,15 +137,14 @@
         
         #link-dns-target {
             position: absolute;
-            left: 210px;
-            top: 155px;
-            width: 290px;
-            height: 180px;
-            border-right: 2px dotted var(--azure-teal);
-            border-bottom: 2px dotted var(--azure-teal);
-            border-bottom-right-radius: 20px;
+            top: 0;
+            left: 0;
+            width: 940px;
+            height: 560px;
+            pointer-events: none;
             z-index: 1;
-            opacity: 0.2;
+            opacity: 0.4;
+            transition: opacity 0.5s;
         }
 
         /* Bypass Arc */
@@ -188,7 +187,7 @@
         #dns-record-azure { left: 140px; top: 140px; border: 2px solid var(--azure-teal); }
         #dns-record-azure .record-title { color: var(--azure-teal); }
 
-        #dns-record-cf { left: 583px; top: 210px; border: 2px solid var(--cf-orange); }
+        #dns-record-cf { left: 630px; top: 210px; border: 2px solid var(--cf-orange); }
         #dns-record-cf .record-title { color: var(--cf-orange); }
 
         /* Traffic Packets */
@@ -215,6 +214,8 @@
         /* Failure Styles */
         .failed img { filter: grayscale(1) brightness(0.3) sepia(1) hue-rotate(-50deg) saturate(3); }
         .failed span { color: var(--red); opacity: 0.5; }
+        
+        .dimmed { opacity: 0.2; filter: grayscale(1); pointer-events: none; }
         
         .x-mark {
             position: absolute;
@@ -279,7 +280,10 @@
         <div id="link-portal-dns" class="connection"></div>
         <div id="link-user-edge" class="connection"><div class="packet"></div></div>
         <div id="link-edge-origin" class="connection"><div class="packet"></div></div>
-        <div id="link-dns-target"></div>
+        <!-- DNS Connection Path -->
+        <svg id="link-dns-target" viewBox="0 0 940 560">
+            <path d="M 210 110 V 275 Q 210 285 220 285 H 620 Q 630 285 630 275 V 270" fill="none" stroke="var(--green)" stroke-width="1.5" stroke-dasharray="3,3" />
+        </svg>
         
         <!-- Elegant Bypass SVG Arc -->
         <svg id="bypass-svg" viewBox="0 0 940 560">
@@ -353,6 +357,7 @@
             liveDot: document.getElementById('live-dot'),
             edgeNode: document.getElementById('edge'),
             apiNode: document.getElementById('cf-api'),
+            dnsNodeCf: document.getElementById('cf-dns'),
             xEdge: document.getElementById('x-edge'),
             xApi: document.getElementById('x-api'),
             packets: document.querySelectorAll('.packet'),
@@ -387,10 +392,15 @@
             await new Promise(r => setTimeout(r, 2500));
 
             await updateStatus(CONTENT.steps[1], true);
+            // Edge and API fail (red X)
             elements.edgeNode.classList.add('failed');
             elements.apiNode.classList.add('failed');
             elements.xEdge.style.display = 'block';
             elements.xApi.style.display = 'block';
+            
+            // Cloudflare DNS dims (it's up but bypassed/unreliable in this flow)
+            elements.dnsNodeCf.classList.add('dimmed');
+            elements.dnsBoxCf.classList.add('dimmed');
             
             elements.packets.forEach(p => p.style.display = 'none');
             await new Promise(r => setTimeout(r, 3000));
@@ -405,13 +415,18 @@
             await wait(1500);
 
             await updateStatus(CONTENT.steps[3]);
+            // Azure DNS stays bright and active
             elements.dnsBoxAzure.style.borderColor = 'var(--green)';
             elements.dnsBoxAzure.style.transform = 'scale(1.1)';
             await wait(500);
             elements.azTarget.innerText = CONTENT.originTarget;
             elements.azTarget.style.color = "var(--green)";
             elements.dnsBoxAzure.style.transform = 'scale(1.0)';
-            await wait(1500);
+            
+            await wait(800);
+            elements.dnsBoxAzure.style.opacity = '0.4';
+            document.getElementById('link-dns-target').style.opacity = '0';
+            await wait(700);
 
             await updateStatus(CONTENT.steps[4]);
             elements.bypassSvg.style.display = 'block';
