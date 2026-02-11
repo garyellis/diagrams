@@ -36,7 +36,7 @@
         #stage {
             position: relative;
             width: 900px;
-            height: 550px;
+            height: 480px;
             border: 1px solid #eee;
             border-radius: 12px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.05);
@@ -55,11 +55,11 @@
         .node span { display: block; font-size: 11px; font-weight: 700; margin-top: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
 
         /* Positions */
-        #user { left: 50px; top: 350px; }
-        #edge { left: 400px; top: 350px; }
-        #origin { left: 750px; top: 350px; }
-        #api { left: 400px; top: 80px; }
-        #admin { left: 750px; top: 80px; }
+        #user { left: 50px; top: 260px; }
+        #edge { left: 400px; top: 260px; }
+        #origin { left: 750px; top: 260px; }
+        #api { left: 400px; top: 30px; }
+        #admin { left: 750px; top: 30px; }
 
         /* Connections */
         .connection {
@@ -78,16 +78,16 @@
             text-transform: uppercase;
         }
         
-        #link-user-edge { left: 130px; top: 380px; width: 270px; }
-        #link-edge-origin { left: 480px; top: 380px; width: 270px; }
-        #link-admin-api { left: 480px; top: 110px; width: 270px; }
-        #link-api-edge { left: 450px; top: 140px; width: 2px; height: 210px; } /* Control Plane Link */
+        #link-user-edge { left: 130px; top: 290px; width: 270px; }
+        #link-edge-origin { left: 480px; top: 290px; width: 270px; }
+        #link-admin-api { left: 480px; top: 60px; width: 270px; }
+        #link-api-edge { left: 450px; top: 90px; width: 2px; height: 170px; } /* Control Plane Link */
 
         /* DNS Record Visual */
         #dns-record {
             position: absolute;
             left: 470px;
-            top: 180px;
+            top: 115px;
             background: white;
             border: 2px solid var(--dns-purple);
             border-radius: 6px;
@@ -140,7 +140,7 @@
             background: var(--cf-orange);
             border-radius: 50%;
             left: -3px;
-            offset-path: path('M 0 0 L 0 210');
+            offset-path: path('M 0 0 L 0 170');
             animation: pulse-flow 3s infinite ease-in-out;
         }
         @keyframes pulse-flow {
@@ -164,10 +164,29 @@
             pointer-events: none;
         }
 
-        /* UI Controls */
-        #controls { margin-top: 30px; display: flex; gap: 15px; }
+        /* UI Controls Inside Stage */
+        #status-text { 
+            position: absolute;
+            bottom: 65px;
+            width: 100%;
+            text-align: center;
+            font-size: 16px; 
+            font-weight: 500; 
+            color: #666; 
+            height: 24px;
+            z-index: 20;
+        }
+        #controls { 
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            display: flex; 
+            justify-content: center;
+            gap: 15px; 
+            z-index: 20;
+        }
         button {
-            padding: 10px 20px;
+            padding: 8px 16px;
             border: none;
             border-radius: 6px;
             background: #333;
@@ -175,9 +194,9 @@
             font-weight: 600;
             cursor: pointer;
             transition: transform 0.1s;
+            font-size: 13px;
         }
         button:hover { transform: translateY(-2px); background: #000; }
-        #status-text { margin-top: 20px; font-size: 18px; font-weight: 500; color: #666; height: 24px; text-align: center; max-width: 600px; }
     </style>
 </head>
 <body>
@@ -220,17 +239,17 @@
             <div id="admin" class="node"><img src="components/admin.svg"><span>Domain Admin</span></div>
 
             <!-- Failure Markers -->
-            <div id="x-edge" class="x-mark" style="left: 410px; top: 360px;">✕</div>
-            <div id="x-api" class="x-mark" style="left: 410px; top: 90px;">✕</div>
-            <div id="x-admin" class="x-mark" style="left: 600px; top: 90px;">✕</div>
+            <div id="x-edge" class="x-mark" style="left: 410px; top: 270px;">✕</div>
+            <div id="x-api" class="x-mark" style="left: 410px; top: 40px;">✕</div>
+            <div id="x-admin" class="x-mark" style="left: 600px; top: 40px;">✕</div>
+
+            <!-- UI Inside Stage -->
+            <div id="status-text">System Healthy: API controls DNS & Edge Config</div>
+            <div id="controls">
+                <button onclick="runScenario()">Play Outage Scenario</button>
+                <button onclick="reset()" style="background:#eee; color:#333;">Reset</button>
+            </div>
         </div>
-    </div>
-
-    <div id="status-text">System Healthy: API controls DNS & Edge Config</div>
-
-    <div id="controls">
-        <button onclick="runScenario()">Play Outage Scenario</button>
-        <button onclick="reset()" style="background:#eee; color:#333;">Reset</button>
     </div>
 
     <script>
@@ -258,12 +277,11 @@
         function scaleDiagram() {
             const container = document.getElementById('responsive-container');
             const stage = document.getElementById('stage');
-            const availableWidth = container.offsetWidth - 40; // 40px for padding
+            const availableWidth = container.offsetWidth - 40; 
             const scale = Math.min(availableWidth / 900, 1);
             
             stage.style.transform = `scale(${scale})`;
-            // Adjust container height to match scaled stage
-            container.style.height = (550 * scale + 40) + 'px';
+            container.style.height = (480 * scale) + 'px';
         }
 
         window.addEventListener('resize', scaleDiagram);
