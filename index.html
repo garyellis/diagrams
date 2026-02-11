@@ -14,8 +14,25 @@
             --text: #333;
             --dns-purple: #9C27B0;
         }
-        body { font-family: "Inter", sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
+        body { 
+            font-family: "Inter", sans-serif; 
+            background: var(--bg); 
+            color: var(--text); 
+            margin: 0; 
+            padding: 0;
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            overflow-x: hidden;
+        }
         
+        #responsive-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            padding: 20px 0;
+        }
+
         #stage {
             position: relative;
             width: 900px;
@@ -24,6 +41,7 @@
             border-radius: 12px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.05);
             background: #fafafa;
+            transform-origin: top center;
         }
 
         .node {
@@ -164,46 +182,48 @@
 </head>
 <body>
 
-    <div id="stage">
-        <!-- Connections -->
-        <div id="link-user-edge" class="connection">
-            <div class="connection-label" style="left: 100px; top: -15px;">Data Plane</div>
-            <div class="packet"></div>
-        </div>
-        <div id="link-edge-origin" class="connection">
-            <div class="packet"></div>
-        </div>
-        <div id="link-admin-api" class="connection">
-            <div class="connection-label" style="left: 100px; top: -15px;">Management</div>
-        </div>
-        <div id="link-api-edge" class="connection">
-            <div class="connection-label" style="left: 10px; top: 100px; transform: rotate(90deg); transform-origin: left top;">Control Plane (DNS/Config)</div>
-            <div class="pulse"></div>
-        </div>
-
-        <!-- DNS Record -->
-        <div id="dns-record">
-            <div class="record-title"><span>DNS Record</span> <span>🔒</span></div>
-            <div>TYPE: A</div>
-            <div>NAME: app.io</div>
-            <div id="record-value" style="color: #666; font-weight: bold;">VALUE: CF_EDGE_IP</div>
-            <div class="proxy-status">
-                <span class="cloud-icon">☁️</span>
-                <span>Proxied (Orange)</span>
+    <div id="responsive-container">
+        <div id="stage">
+            <!-- Connections -->
+            <div id="link-user-edge" class="connection">
+                <div class="connection-label" style="left: 100px; top: -15px;">Data Plane</div>
+                <div class="packet"></div>
             </div>
+            <div id="link-edge-origin" class="connection">
+                <div class="packet"></div>
+            </div>
+            <div id="link-admin-api" class="connection">
+                <div class="connection-label" style="left: 100px; top: -15px;">Management</div>
+            </div>
+            <div id="link-api-edge" class="connection">
+                <div class="connection-label" style="left: 10px; top: 100px; transform: rotate(90deg); transform-origin: left top;">Control Plane (DNS/Config)</div>
+                <div class="pulse"></div>
+            </div>
+
+            <!-- DNS Record -->
+            <div id="dns-record">
+                <div class="record-title"><span>DNS Record</span> <span>🔒</span></div>
+                <div>TYPE: A</div>
+                <div>NAME: app.io</div>
+                <div id="record-value" style="color: #666; font-weight: bold;">VALUE: CF_EDGE_IP</div>
+                <div class="proxy-status">
+                    <span class="cloud-icon">☁️</span>
+                    <span>Proxied (Orange)</span>
+                </div>
+            </div>
+
+            <!-- Nodes -->
+            <div id="user" class="node"><img src="components/user.svg"><span>User</span></div>
+            <div id="edge" class="node"><img src="components/edge_up.svg"><span>CF Edge</span></div>
+            <div id="origin" class="node"><img src="components/origin.svg"><span>Origin</span></div>
+            <div id="api" class="node"><img src="components/api_up.svg"><span>CF API</span></div>
+            <div id="admin" class="node"><img src="components/admin.svg"><span>Domain Admin</span></div>
+
+            <!-- Failure Markers -->
+            <div id="x-edge" class="x-mark" style="left: 410px; top: 360px;">✕</div>
+            <div id="x-api" class="x-mark" style="left: 410px; top: 90px;">✕</div>
+            <div id="x-admin" class="x-mark" style="left: 600px; top: 90px;">✕</div>
         </div>
-
-        <!-- Nodes -->
-        <div id="user" class="node"><img src="components/user.svg"><span>User</span></div>
-        <div id="edge" class="node"><img src="components/edge_up.svg"><span>CF Edge</span></div>
-        <div id="origin" class="node"><img src="components/origin.svg"><span>Origin</span></div>
-        <div id="api" class="node"><img src="components/api_up.svg"><span>CF API</span></div>
-        <div id="admin" class="node"><img src="components/admin.svg"><span>Domain Admin</span></div>
-
-        <!-- Failure Markers -->
-        <div id="x-edge" class="x-mark" style="left: 410px; top: 360px;">✕</div>
-        <div id="x-api" class="x-mark" style="left: 410px; top: 90px;">✕</div>
-        <div id="x-admin" class="x-mark" style="left: 600px; top: 90px;">✕</div>
     </div>
 
     <div id="status-text">System Healthy: API controls DNS & Edge Config</div>
@@ -233,6 +253,22 @@
         }
 
         async function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+        // Auto-scaling logic
+        function scaleDiagram() {
+            const container = document.getElementById('responsive-container');
+            const stage = document.getElementById('stage');
+            const availableWidth = container.offsetWidth - 40; // 40px for padding
+            const scale = Math.min(availableWidth / 900, 1);
+            
+            stage.style.transform = `scale(${scale})`;
+            // Adjust container height to match scaled stage
+            container.style.height = (550 * scale + 40) + 'px';
+        }
+
+        window.addEventListener('resize', scaleDiagram);
+        window.addEventListener('load', scaleDiagram);
+        scaleDiagram();
 
         async function runScenario() {
             // Step 1: Normal
