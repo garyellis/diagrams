@@ -340,7 +340,7 @@
             originTarget: "origin-server.io",
             steps: [
                 "Step 1: Normal Operation. Azure DNS points traffic to Cloudflare.",
-                "Step 2: CLOUDFLARE OUTAGE. Entire ecosystem (Edge & API) is down.",
+                "Step 2: CLOUDFLARE OUTAGE. Edge & API services are down (DNS remains active).",
                 "Step 3: Admin logs into Azure Portal (Unaffected by CF outage).",
                 "Step 4: Admin updates Azure CNAME to point directly to Origin Host.",
                 "Step 5: SUCCESS. Traffic is redirected via Failover Path."
@@ -389,13 +389,10 @@
             await updateStatus(CONTENT.steps[1], true);
             elements.edgeNode.classList.add('failed');
             elements.apiNode.classList.add('failed');
-            document.getElementById('cf-dns').classList.add('failed');
             elements.xEdge.style.display = 'block';
             elements.xApi.style.display = 'block';
-            document.getElementById('x-cf-dns').style.display = 'block';
             
             elements.packets.forEach(p => p.style.display = 'none');
-            elements.dnsBoxCf.style.opacity = '0.1';
             await new Promise(r => setTimeout(r, 3000));
 
             await updateStatus(CONTENT.steps[2]);
