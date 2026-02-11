@@ -1,0 +1,13 @@
+sequenceDiagram
+    participant User
+    participant CF_Edge as Cloudflare Edge (DOWN)
+    participant Origin as Origin Server
+    participant Admin
+    participant CF_API as Cloudflare API (DOWN)
+
+    Note over CF_Edge, CF_API: OUTAGE START
+    User-xCF_Edge: Request Fails (5xx / Timeout)
+    Admin->>CF_API: Attempt to bypass CF (DNS change)
+    CF_API--xAdmin: Connection Refused / Timeout
+    Note right of Admin: Admin is locked out.<br/>Cannot update DNS/Page Rules.
+    Note left of User: Traffic is blackholed.

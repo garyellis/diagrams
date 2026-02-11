@@ -1,0 +1,14 @@
+sequenceDiagram
+    participant User
+    participant CF_Edge as Cloudflare Edge
+    participant Origin as Origin Server
+    participant Admin
+    participant CF_API as Cloudflare Dashboard/API
+
+    Note over User, CF_API: Normal Operation
+    User->>CF_Edge: Request
+    CF_Edge->>Origin: Proxy Request
+    Origin-->>CF_Edge: Response
+    CF_Edge-->>User: Response
+    Admin->>CF_API: Check Stats
+    CF_API-->>Admin: Display Data
