@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resilient Architecture: Azure DNS Failover</title>
+    <style>
+        :root {
+            --green: #81C784;
+            --red: #E57373;
+            --cf-orange: #FFB74D;
+            --admin-blue: #64B5F6;
+            --bg: #121212;
+            --stage-bg: #1e1e1e;
+            --text: #eeeeee;
+            --text-muted: #aaaaaa;
+            --dns-purple: #BA68C8;
+            --border: #333333;
+            --azure-teal: #4DB6AC;
+            --cf-group-bg: rgba(255, 130, 31, 0.03);
+        }
+        body { 
+            font-family: "Inter", sans-serif; 
+            background: var(--bg); 
+            color: var(--text); 
+            margin: 0; 
+            padding: 20px;
+            display: flex; 
+            flex-direction: column; 
+            align-items: center;
+        }
+
+        #stage {
+            position: relative;
+            width: 940px; 
+            height: 560px; 
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            background: var(--stage-bg);
+            overflow: hidden;
+        }
+
+        /* Grouping for Cloudflare */
+        #cf-group {
+            position: absolute;
+            left: 310px;
+            top: 60px;
+            width: 320px;
+            height: 380px;
+            border: 1px dashed rgba(255, 183, 77, 0.2);
+            border-radius: 16px;
+            background: var(--cf-group-bg);
+            z-index: 1;
+        }
+        #cf-group-label {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            font-weight: 800;
+            color: var(--cf-orange);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        /* Legend */
+        #legend {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(40, 40, 40, 0.9);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 10px;
+            z-index: 5;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            backdrop-filter: blur(4px);
+        }
+        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-weight: 600; color: var(--text-muted); }
+        .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+        .node {
+            position: absolute;
+            width: 100px;
+            text-align: center;
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 10;
+        }
+        .node img { width: 60px; height: 60px; transition: filter 0.5s; }
+        .node span { display: block; font-size: 11px; font-weight: 700; margin-top: 5px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text); }
+
+        /* Positions */
+        #user { left: 70px; top: 330px; }
+        #edge { left: 420px; top: 330px; }
+        #origin { left: 770px; top: 330px; }
+        #api { left: 420px; top: 100px; }
+        #azure-dns { left: 100px; top: 80px; }
+        #admin { left: 770px; top: 80px; }
+
+        /* Connections */
+        .connection {
+            position: absolute;
+            background: #444;
+            height: 2px;
+            z-index: 1;
+            transition: all 0.5s;
+        }
+        .connection-label {
+            position: absolute;
+            font-size: 10px;
+            font-weight: bold;
+            color: #777;
+            background: var(--stage-bg);
+            padding: 0 5px;
+            text-transform: uppercase;
+        }
+        
+        #link-user-edge { left: 150px; top: 360px; width: 270px; }
+        #link-edge-origin { left: 500px; top: 360px; width: 270px; }
+        #link-admin-dns { left: 180px; top: 110px; width: 610px; border-bottom: 2px dashed #444; background: none; height: 0; }
+        #link-dns-edge { left: 150px; top: 140px; width: 270px; border-bottom: 2px dotted var(--azure-teal); background: none; height: 220px; border-left: 2px dotted var(--azure-teal); border-bottom-left-radius: 20px; }
+
+        /* Elegant Bypass Path (SVG) */
+        #bypass-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+            display: none;
+        }
+        .bypass-path {
+            fill: none;
+            stroke: var(--green);
+            stroke-width: 3;
+            stroke-dasharray: 10, 10;
+            opacity: 0.6;
+        }
+        .bypass-packet {
+            fill: var(--green);
+            filter: drop-shadow(0 0 5px var(--green));
+        }
+
+        /* DNS Record Visual */
+        #dns-record {
+            position: absolute;
+            left: 80px;
+            top: 170px;
+            background: #252525;
+            border: 2px solid var(--azure-teal);
+            border-radius: 6px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 11px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+            z-index: 5;
+            transition: all 0.5s;
+            width: 160px;
+            color: var(--text);
+        }
+        .record-title { color: var(--azure-teal); font-weight: bold; border-bottom: 1px solid #333; margin-bottom: 6px; padding-bottom: 4px; display: flex; justify-content: space-between; }
+        #current-target { color: var(--cf-orange); transition: color 0.5s; font-weight: bold; }
+
+        /* Traffic Packets */
+        .packet {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: var(--green);
+            border-radius: 50%;
+            top: -4px;
+            offset-path: path('M 0 0 L 270 0');
+            animation: flow 2s infinite linear;
+            box-shadow: 0 0 8px var(--green);
+        }
+        #link-edge-origin .packet { offset-path: path('M 0 0 L 270 0'); }
+        
+        @keyframes flow {
+            0% { offset-distance: 0%; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { offset-distance: 100%; opacity: 0; }
+        }
+
+        /* Failure Styles */
+        .failed img { filter: grayscale(1) brightness(0.4) sepia(1) hue-rotate(-50deg) saturate(3); }
+        .failed span { color: var(--red); opacity: 0.6; }
+        .failed-link { background: var(--red) !important; opacity: 0.1 !important; }
+        
+        .x-mark {
+            position: absolute;
+            font-size: 40px;
+            color: #ff5252;
+            font-weight: bold;
+            display: none;
+            z-index: 20;
+            pointer-events: none;
+            text-shadow: 0 0 10px rgba(255, 82, 82, 0.5);
+        }
+
+        /* Tooltips */
+        .node .tooltip {
+            visibility: hidden;
+            width: 140px;
+            background-color: #444;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 8px;
+            position: absolute;
+            z-index: 30;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -70px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 10px;
+            line-height: 1.4;
+            pointer-events: none;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+        }
+        .node:hover .tooltip { visibility: visible; opacity: 1; }
+
+        /* Live Indicator */
+        #live-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background-color: var(--green);
+            border-radius: 50%;
+            margin-right: 8px;
+            box-shadow: 0 0 12px var(--green);
+            animation: pulse-dot 2s infinite;
+        }
+        @keyframes pulse-dot {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(129, 199, 132, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(129, 199, 132, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(129, 199, 132, 0); }
+        }
+        .indicator-warn { background-color: var(--cf-orange) !important; box-shadow: 0 0 12px var(--cf-orange) !important; animation: none !important; }
+
+        /* Status Ticker */
+        #status-text { 
+            position: absolute;
+            bottom: 75px;
+            width: 100%;
+            text-align: center;
+            font-size: 16px; 
+            font-weight: 500; 
+            color: var(--text-muted); 
+            height: 24px;
+            z-index: 20;
+            transition: opacity 0.3s, transform 0.3s;
+        }
+        .status-update { opacity: 0; transform: translateY(5px); }
+
+        #controls { 
+            position: absolute;
+            bottom: 30px;
+            width: 100%;
+            display: flex; 
+            justify-content: center;
+            gap: 15px; 
+            z-index: 20;
+        }
+        button {
+            padding: 8px 16px;
+            border: 1px solid #444;
+            border-radius: 6px;
+            background: #333;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 13px;
+        }
+        button:hover { background: #444; border-color: #555; transform: translateY(-1px); }
+    </style>
+</head>
+<body>
+
+    <div id="stage">
+        <!-- Legend -->
+        <div id="legend">
+            <div class="legend-item"><div class="dot" style="background:var(--green)"></div> Data Traffic</div>
+            <div class="legend-item"><div class="dot" style="background:var(--azure-teal)"></div> Azure DNS (Auth)</div>
+            <div class="legend-item"><div class="dot" style="background:var(--admin-blue)"></div> Admin Action</div>
+        </div>
+
+        <!-- Cloudflare ecosystem grouping -->
+        <div id="cf-group">
+            <div id="cf-group-label">Cloudflare Ecosystem</div>
+        </div>
+
+        <!-- Connections -->
+        <div id="link-user-edge" class="connection">
+            <div class="connection-label" style="left: 100px; top: -15px;">Primary Traffic</div>
+            <div class="packet"></div>
+        </div>
+        <div id="link-edge-origin" class="connection">
+            <div class="packet"></div>
+        </div>
+        <div id="link-admin-dns" class="connection">
+            <div class="connection-label" style="left: 200px; top: -15px;">Azure DNS Control Panel</div>
+        </div>
+        <div id="link-dns-edge" class="connection" style="background:none;">
+            <div class="connection-label" style="left: 10px; top: 180px; transform: rotate(90deg); transform-origin: left top;">CNAME Target</div>
+        </div>
+        
+        <!-- Elegant Bypass SVG Arc -->
+        <svg id="bypass-svg" viewBox="0 0 940 560">
+            <path id="bypass-arc" class="bypass-path" d="M 120 360 Q 470 520 820 360" />
+            <circle class="bypass-packet" r="5">
+                <animateMotion dur="2s" repeatCount="indefinite">
+                    <mpath href="#bypass-arc" />
+                </animateMotion>
+            </circle>
+        </svg>
+
+        <!-- DNS Record -->
+        <div id="dns-record">
+            <div class="record-title"><span>Azure DNS</span> <span>☁️</span></div>
+            <div>TYPE: CNAME</div>
+            <div id="dns-name-display">NAME: app.io</div>
+            <div style="margin-top: 5px;">
+                <span style="font-size: 8px; color: #777;">POINTS TO:</span><br/>
+                <span id="current-target">loading...</span>
+            </div>
+        </div>
+
+        <!-- Nodes -->
+        <div id="user" class="node">
+            <img src="components/user.svg"><span>User</span>
+            <div class="tooltip" id="tip-user"></div>
+        </div>
+        <div id="edge" class="node">
+            <img src="components/edge_up.svg"><span>Edge Partial</span>
+            <div class="tooltip" id="tip-edge"></div>
+        </div>
+        <div id="origin" class="node">
+            <img src="components/origin.svg"><span>Origin Host</span>
+            <div class="tooltip" id="tip-origin"></div>
+        </div>
+        <div id="azure-dns" class="node">
+            <img src="components/api_up.svg" style="filter: hue-rotate(150deg) saturate(1.5);"><span>Azure DNS</span>
+            <div class="tooltip" id="tip-dns"></div>
+        </div>
+        <div id="api" class="node">
+            <img src="components/api_up.svg"><span>Cloudflare API</span>
+            <div class="tooltip" id="tip-api"></div>
+        </div>
+        <div id="admin" class="node">
+            <img src="components/admin.svg"><span>Domain Admin</span>
+            <div class="tooltip" id="tip-admin"></div>
+        </div>
+
+        <!-- Failure Markers -->
+        <div id="x-edge" class="x-mark" style="left: 430px; top: 340px;">✕</div>
+        <div id="x-api" class="x-mark" style="left: 430px; top: 110px;">✕</div>
+
+        <!-- UI Inside Stage -->
+        <div id="status-text"><span id="live-indicator"></span><span id="text-target"></span></div>
+        <div id="controls">
+            <button id="run-btn" onclick="runScenario()">Demonstrate Failover</button>
+            <button onclick="reset()" style="background:#252525; color:#aaa; border-color:#333;">Reset</button>
+        </div>
+    </div>
+
+    <script>
+        // --- CUSTOMIZE CONTENT HERE ---
+        const CONTENT = {
+            dnsName: "app.io",
+            cfTarget: "app.io.cdn.cloudflare.net",
+            originTarget: "origin-server.io",
+            tooltips: {
+                user: "Users accessing your application via {DNS}.",
+                edge: "Cloudflare Edge (Partial Setup/CNAME mode).",
+                origin: "Origin Server (Your Infrastructure).",
+                dns: "Azure DNS: Authoritative nameserver (External).",
+                api: "Cloudflare Control Plane (Configuration).",
+                admin: "Site Admin with Azure & Cloudflare access."
+            },
+            steps: [
+                "Step 1: Normal Operation. Azure DNS points traffic to Cloudflare.",
+                "Step 2: CLOUDFLARE OUTAGE. Entire ecosystem (Edge & API) is down.",
+                "Step 3: Admin logs into Azure DNS (Unaffected by Cloudflare outage).",
+                "Step 4: Admin updates Azure CNAME to point directly to Origin Server.",
+                "Step 5: SUCCESS. Traffic is redirected to an alternate path."
+            ]
+        };
+
+        const elements = {
+            // ... existing elements ...
+            status: document.getElementById('status-text'),
+            statusText: document.getElementById('text-target'),
+            liveDot: document.getElementById('live-indicator'),
+            edgeNode: document.getElementById('edge'),
+            apiNode: document.getElementById('api'),
+            xEdge: document.getElementById('x-edge'),
+            xApi: document.getElementById('x-api'),
+            packets: document.querySelectorAll('.packet'),
+            linkUserEdge: document.getElementById('link-user-edge'),
+            linkEdgeOrigin: document.getElementById('link-edge-origin'),
+            adminLink: document.getElementById('link-admin-dns'),
+            targetText: document.getElementById('current-target'),
+            dnsBox: document.getElementById('dns-record'),
+            bypassSvg: document.getElementById('bypass-svg')
+        };
+
+        function initContent() {
+            Object.keys(CONTENT.tooltips).forEach(key => {
+                const tip = document.getElementById(`tip-${key}`);
+                if(tip) tip.innerText = CONTENT.tooltips[key].replace("{DNS}", CONTENT.dnsName);
+            });
+            document.getElementById('dns-name-display').innerText = `NAME: ${CONTENT.dnsName}`;
+            elements.targetText.innerText = CONTENT.cfTarget;
+            elements.statusText.innerHTML = CONTENT.steps[0];
+        }
+
+        async function updateStatus(text, type = 'normal') {
+            elements.status.classList.add('status-update');
+            await wait(300);
+            elements.statusText.innerHTML = text;
+            elements.liveDot.className = '';
+            if (type === 'warn') elements.liveDot.classList.add('indicator-warn');
+            elements.status.classList.remove('status-update');
+        }
+
+        function reset() { location.reload(); }
+        async function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+        window.addEventListener('load', initContent);
+
+        async function runScenario() {
+            const runBtn = document.getElementById('run-btn');
+            runBtn.disabled = true;
+            runBtn.style.opacity = '0.5';
+
+            // Step 1: Normal
+            await updateStatus(CONTENT.steps[0]);
+            await wait(3000);
+
+            // Step 2: Outage
+            await updateStatus(CONTENT.steps[1], 'warn');
+            elements.edgeNode.classList.add('failed');
+            elements.apiNode.classList.add('failed');
+            elements.xEdge.style.display = 'block';
+            elements.xApi.style.display = 'block';
+            elements.packets.forEach(p => p.style.display = 'none');
+            elements.linkUserEdge.classList.add('failed-link');
+            elements.linkEdgeOrigin.classList.add('failed-link');
+            await wait(3000);
+
+            // Step 3: Admin Action
+            await updateStatus(CONTENT.steps[2]);
+            const adminAction = document.createElement('div');
+            adminAction.className = 'packet';
+            adminAction.style.background = 'var(--admin-blue)';
+            adminAction.style.animation = 'flow 1.5s forwards linear';
+            adminAction.style.offsetPath = "path('M 610 0 L 0 0')";
+            elements.adminLink.appendChild(adminAction);
+            await wait(1500);
+
+            // Step 4: Update DNS
+            await updateStatus(CONTENT.steps[3]);
+            elements.dnsBox.style.borderColor = 'var(--green)';
+            elements.dnsBox.style.transform = 'scale(1.1)';
+            await wait(500);
+            elements.targetText.innerText = CONTENT.originTarget;
+            elements.targetText.style.color = "var(--green)";
+            elements.dnsBox.style.transform = 'scale(1.0)';
+            await wait(1000);
+
+            // Step 5: Success - The Bypass Arc
+            await updateStatus(CONTENT.steps[4]);
+            elements.bypassSvg.style.display = 'block';
+            elements.linkUserEdge.style.opacity = '0';
+            elements.linkEdgeOrigin.style.opacity = '0';
+        }
+    </script>
+</body>
+</html>
