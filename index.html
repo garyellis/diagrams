@@ -3,20 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloudflare DNS & Edge Outage Animation</title>
+    <title>Cloudflare Outage Animation (Dark Theme)</title>
     <style>
         :root {
-            --green: #4CAF50;
-            --red: #F44336;
-            --cf-orange: #F6821F;
-            --admin-blue: #2196F3;
-            --bg: #ffffff;
-            --text: #333;
-            --dns-purple: #9C27B0;
+            --green: #81C784;
+            --red: #E57373;
+            --cf-orange: #FFB74D;
+            --admin-blue: #64B5F6;
+            --bg: #121212;
+            --stage-bg: #1e1e1e;
+            --text: #eeeeee;
+            --text-muted: #aaaaaa;
+            --dns-purple: #BA68C8;
+            --border: #333333;
         }
         body { 
             font-family: "Inter", sans-serif; 
-            background: #f0f2f5; /* Darker background to make the stage stand out */
+            background: var(--bg); 
             color: var(--text); 
             margin: 0; 
             padding: 20px;
@@ -27,12 +30,12 @@
 
         #stage {
             position: relative;
-            width: 940px; /* Explicit width */
-            height: 560px; /* Explicit height */
-            border: 1px solid #ddd;
+            width: 940px; 
+            height: 560px; 
+            border: 1px solid var(--border);
             border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            background: #ffffff; /* White background for the "box" */
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            background: var(--stage-bg);
             overflow: hidden;
         }
 
@@ -41,15 +44,16 @@
             position: absolute;
             top: 20px;
             left: 20px;
-            background: rgba(255,255,255,0.9);
-            border: 1px solid #eee;
+            background: rgba(40, 40, 40, 0.9);
+            border: 1px solid var(--border);
             border-radius: 6px;
             padding: 8px 12px;
             font-size: 10px;
             z-index: 5;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            backdrop-filter: blur(4px);
         }
-        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-weight: 600; color: #666; }
+        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-weight: 600; color: var(--text-muted); }
         .dot { width: 8px; height: 8px; border-radius: 50%; }
 
         .node {
@@ -60,9 +64,9 @@
             z-index: 10;
         }
         .node img { width: 60px; height: 60px; transition: filter 0.5s; }
-        .node span { display: block; font-size: 11px; font-weight: 700; margin-top: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .node span { display: block; font-size: 11px; font-weight: 700; margin-top: 5px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text); }
 
-        /* Adjusted Positions - Moving them inwards to stay in the box */
+        /* Positions */
         #user { left: 70px; top: 330px; }
         #edge { left: 420px; top: 330px; }
         #origin { left: 770px; top: 330px; }
@@ -72,7 +76,7 @@
         /* Connections */
         .connection {
             position: absolute;
-            background: #ddd;
+            background: #444;
             height: 2px;
             z-index: 1;
         }
@@ -80,8 +84,8 @@
             position: absolute;
             font-size: 10px;
             font-weight: bold;
-            color: #999;
-            background: #ffffff;
+            color: #777;
+            background: var(--stage-bg);
             padding: 0 5px;
             text-transform: uppercase;
         }
@@ -96,18 +100,19 @@
             position: absolute;
             left: 490px;
             top: 185px;
-            background: white;
+            background: #252525;
             border: 2px solid var(--dns-purple);
             border-radius: 6px;
             padding: 10px;
             font-family: monospace;
             font-size: 11px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.4);
             z-index: 5;
             transition: all 0.3s;
             width: 140px;
+            color: var(--text);
         }
-        .record-title { color: var(--dns-purple); font-weight: bold; border-bottom: 1px solid #eee; margin-bottom: 6px; padding-bottom: 4px; display: flex; justify-content: space-between; }
+        .record-title { color: var(--dns-purple); font-weight: bold; border-bottom: 1px solid #333; margin-bottom: 6px; padding-bottom: 4px; display: flex; justify-content: space-between; }
         .proxy-status { 
             display: flex; 
             align-items: center; 
@@ -116,7 +121,7 @@
             color: var(--cf-orange); 
             margin-top: 4px;
             padding-top: 4px;
-            border-top: 1px dashed #eee;
+            border-top: 1px dashed #333;
         }
 
         /* Traffic Packets */
@@ -129,6 +134,7 @@
             top: -4px;
             offset-path: path('M 0 0 L 270 0');
             animation: flow 2s infinite linear;
+            box-shadow: 0 0 8px var(--green);
         }
         #link-edge-origin .packet { offset-path: path('M 0 0 L 270 0'); }
         
@@ -149,6 +155,7 @@
             left: -3px;
             offset-path: path('M 0 0 L 0 170');
             animation: pulse-flow 3s infinite ease-in-out;
+            box-shadow: 0 0 8px var(--cf-orange);
         }
         @keyframes pulse-flow {
             0% { offset-distance: 0%; opacity: 0; }
@@ -157,25 +164,26 @@
         }
 
         /* Failure Styles */
-        .failed img { filter: grayscale(1) sepia(1) hue-rotate(-50deg) saturate(5) brightness(0.8); }
+        .failed img { filter: grayscale(1) brightness(0.5) sepia(1) hue-rotate(-50deg) saturate(5); }
         .failed span { color: var(--red); }
-        .failed-link { background: var(--red) !important; opacity: 0.3; }
+        .failed-link { background: var(--red) !important; opacity: 0.2; }
         
         .x-mark {
             position: absolute;
             font-size: 40px;
-            color: black;
+            color: #ff5252;
             font-weight: bold;
             display: none;
             z-index: 20;
             pointer-events: none;
+            text-shadow: 0 0 10px rgba(255, 82, 82, 0.5);
         }
 
         /* Tooltips */
         .node .tooltip {
             visibility: hidden;
             width: 140px;
-            background-color: #333;
+            background-color: #444;
             color: #fff;
             text-align: center;
             border-radius: 6px;
@@ -190,7 +198,7 @@
             font-size: 10px;
             line-height: 1.4;
             pointer-events: none;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.4);
         }
         .node:hover .tooltip { visibility: visible; opacity: 1; }
         .node .tooltip::after {
@@ -201,7 +209,7 @@
             margin-left: -5px;
             border-width: 5px;
             border-style: solid;
-            border-color: #333 transparent transparent transparent;
+            border-color: #444 transparent transparent transparent;
         }
 
         /* Live Indicator */
@@ -212,15 +220,15 @@
             background-color: var(--green);
             border-radius: 50%;
             margin-right: 8px;
-            box-shadow: 0 0 8px var(--green);
+            box-shadow: 0 0 12px var(--green);
             animation: pulse-dot 2s infinite;
         }
         @keyframes pulse-dot {
-            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); }
-            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(76, 175, 80, 0); }
-            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(129, 199, 132, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(129, 199, 132, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(129, 199, 132, 0); }
         }
-        .indicator-down { background-color: var(--red) !important; box-shadow: 0 0 8px var(--red) !important; animation: none !important; }
+        .indicator-down { background-color: var(--red) !important; box-shadow: 0 0 12px var(--red) !important; animation: none !important; }
 
         /* Status Ticker */
         #status-text { 
@@ -230,7 +238,7 @@
             text-align: center;
             font-size: 16px; 
             font-weight: 500; 
-            color: #666; 
+            color: var(--text-muted); 
             height: 24px;
             z-index: 20;
             transition: opacity 0.3s, transform 0.3s;
@@ -248,16 +256,17 @@
         }
         button {
             padding: 8px 16px;
-            border: none;
+            border: 1px solid #444;
             border-radius: 6px;
             background: #333;
             color: white;
             font-weight: 600;
             cursor: pointer;
-            transition: transform 0.1s;
+            transition: all 0.2s;
             font-size: 13px;
         }
-        button:hover { transform: translateY(-2px); background: #000; }
+        button:hover { background: #444; border-color: #555; transform: translateY(-1px); }
+        button:active { transform: translateY(0); }
     </style>
 </head>
 <body>
@@ -291,7 +300,7 @@
             <div class="record-title"><span>DNS Record</span> <span>🔒</span></div>
             <div>TYPE: A</div>
             <div id="dns-name-display">NAME: app.io</div>
-            <div id="record-value" style="color: #666; font-weight: bold;">VALUE: CF_EDGE_IP</div>
+            <div id="record-value" style="color: var(--text-muted); font-weight: bold;">VALUE: CF_EDGE_IP</div>
             <div class="proxy-status">
                 <span class="cloud-icon">☁️</span>
                 <span>Proxied (Orange)</span>
@@ -329,7 +338,7 @@
         <div id="status-text"><span id="live-indicator"></span><span id="text-target"></span></div>
         <div id="controls">
             <button id="run-btn" onclick="runScenario()">Play Outage Scenario</button>
-            <button onclick="reset()" style="background:#eee; color:#333;">Reset</button>
+            <button onclick="reset()" style="background:#252525; color:#aaa; border-color:#333;">Reset</button>
         </div>
     </div>
 
@@ -349,7 +358,7 @@
                 "Step 2: Cloudflare Edge goes DOWN. Traffic is blackholed.",
                 "Step 3: Control Plane (API) also goes DOWN. DNS management is frozen.",
                 "Step 4: Admin attempts to update DNS to point '{DNS}' to Origin...",
-                "Step 5: <span style='color:red'>FAILED.</span> API down. Proxy cannot be disabled. Traffic trapped."
+                "Step 5: <span style='color:var(--red)'>FAILED.</span> API down. Proxy cannot be disabled. Traffic trapped."
             ]
         };
 
@@ -438,7 +447,7 @@
             elements.xAdmin.style.display = 'block';
             await updateStatus(CONTENT.steps[4], true);
             
-            elements.dnsBox.style.borderColor = 'red';
+            elements.dnsBox.style.borderColor = 'var(--red)';
             elements.dnsBox.style.transform = 'scale(1.1)';
             await wait(500);
             elements.dnsBox.style.transform = 'scale(1.0)';
