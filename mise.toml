@@ -1,0 +1,18 @@
+[tools]
+node = "22"
+
+[tasks.lint]
+description = "Lint and format check"
+run = "npx @biomejs/biome check ."
+
+[tasks.test]
+description = "Run smoke tests"
+run = "npx playwright test"
+
+[tasks.check]
+description = "Lint + test"
+depends = ["lint", "test"]
+
+[tasks.setup]
+description = "Install dependencies and Playwright browsers"
+run = ["npm install", "npx playwright install chromium"]

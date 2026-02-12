@@ -1,23 +1,26 @@
 class DiagramEngine {
     constructor(config) {
-        this.config = Object.assign({
-            stageWidth: 940,
-            stageHeight: 560,
-            nodeSize: 60,
-            legendPosition: 'top-left',
-            legend: [],
-            groups: [],
-            nodes: [],
-            connections: [],
-            svgPaths: [],
-            svgOverlays: [],
-            dnsCards: [],
-            xMarks: [],
-            button: { label: 'Play Scenario', color: '--green' },
-            stepCount: 5,
-            vignetteColor: 'rgba(229, 115, 115, 0.35)',
-            initialStatus: '',
-        }, config);
+        this.config = Object.assign(
+            {
+                stageWidth: 940,
+                stageHeight: 560,
+                nodeSize: 60,
+                legendPosition: 'top-left',
+                legend: [],
+                groups: [],
+                nodes: [],
+                connections: [],
+                svgPaths: [],
+                svgOverlays: [],
+                dnsCards: [],
+                xMarks: [],
+                button: { label: 'Play Scenario', color: '--green' },
+                stepCount: 5,
+                vignetteColor: 'rgba(229, 115, 115, 0.35)',
+                initialStatus: '',
+            },
+            config,
+        );
         this._scenarioFn = null;
         this._initFn = null;
     }
@@ -33,8 +36,8 @@ class DiagramEngine {
     init() {
         const stage = document.createElement('div');
         stage.id = 'stage';
-        stage.style.width = this.config.stageWidth + 'px';
-        stage.style.height = this.config.stageHeight + 'px';
+        stage.style.width = `${this.config.stageWidth}px`;
+        stage.style.height = `${this.config.stageHeight}px`;
         document.body.appendChild(stage);
         this._stage = stage;
 
@@ -53,7 +56,8 @@ class DiagramEngine {
 
         // Set initial state
         if (this.config.initialStatus) {
-            document.getElementById('text-target').innerHTML = this.config.initialStatus;
+            document.getElementById('text-target').innerHTML =
+                this.config.initialStatus;
             this.step(0, this.config.initialStatus);
         }
 
@@ -74,12 +78,14 @@ class DiagramEngine {
             const box = document.createElement('div');
             box.id = g.id;
             box.className = 'group-box';
-            box.style.left = g.x + 'px';
-            box.style.top = g.y + 'px';
-            box.style.width = g.width + 'px';
-            box.style.height = g.height + 'px';
+            box.style.left = `${g.x}px`;
+            box.style.top = `${g.y}px`;
+            box.style.width = `${g.width}px`;
+            box.style.height = `${g.height}px`;
 
-            const colorVal = g.color.startsWith('--') ? `var(${g.color})` : g.color;
+            const colorVal = g.color.startsWith('--')
+                ? `var(${g.color})`
+                : g.color;
             box.style.borderColor = this._alpha(g.color, 0.3);
             if (g.bg) box.style.background = g.bg;
 
@@ -106,9 +112,11 @@ class DiagramEngine {
             row.className = 'legend-item';
             const dot = document.createElement('div');
             dot.className = 'dot';
-            dot.style.background = item.color.startsWith('--') ? `var(${item.color})` : item.color;
+            dot.style.background = item.color.startsWith('--')
+                ? `var(${item.color})`
+                : item.color;
             row.appendChild(dot);
-            row.appendChild(document.createTextNode(' ' + item.label));
+            row.appendChild(document.createTextNode(` ${item.label}`));
             legend.appendChild(row);
         }
         stage.appendChild(legend);
@@ -122,19 +130,21 @@ class DiagramEngine {
 
             if (dir === 'vertical') {
                 el.className = 'connection-v';
-                el.style.left = c.x + 'px';
-                el.style.top = c.y + 'px';
-                el.style.height = c.length + 'px';
+                el.style.left = `${c.x}px`;
+                el.style.top = `${c.y}px`;
+                el.style.height = `${c.length}px`;
             } else {
                 el.className = 'connection';
-                el.style.left = c.x + 'px';
-                el.style.top = c.y + 'px';
-                el.style.width = c.length + 'px';
+                el.style.left = `${c.x}px`;
+                el.style.top = `${c.y}px`;
+                el.style.width = `${c.length}px`;
             }
 
             // Custom dash color
             if (c.color) {
-                const cv = c.color.startsWith('--') ? `var(${c.color})` : c.color;
+                const cv = c.color.startsWith('--')
+                    ? `var(${c.color})`
+                    : c.color;
                 const gradDir = dir === 'vertical' ? '180deg' : '90deg';
                 el.style.setProperty('--conn-color', cv);
                 const ss = document.createElement('style');
@@ -156,7 +166,11 @@ class DiagramEngine {
             // Reverse flow
             if (c.reverseFlow) {
                 const gradDir = dir === 'vertical' ? '180deg' : '90deg';
-                const cv = c.color ? (c.color.startsWith('--') ? `var(${c.color})` : c.color) : '#555';
+                const cv = c.color
+                    ? c.color.startsWith('--')
+                        ? `var(${c.color})`
+                        : c.color
+                    : '#555';
                 const dashLen = c.thin ? 4 : 6;
                 const gapLen = c.thin ? 4 : 6;
                 const ss = document.createElement('style');
@@ -184,11 +198,11 @@ class DiagramEngine {
                     Object.assign(lbl.style, c.labelStyle);
                 } else if (dir === 'vertical') {
                     lbl.style.left = '10px';
-                    lbl.style.top = Math.floor(c.length / 2) + 'px';
+                    lbl.style.top = `${Math.floor(c.length / 2)}px`;
                     lbl.style.transform = 'rotate(90deg)';
                     lbl.style.transformOrigin = 'left top';
                 } else {
-                    lbl.style.left = Math.floor(c.length / 2 - 30) + 'px';
+                    lbl.style.left = `${Math.floor(c.length / 2 - 30)}px`;
                     lbl.style.top = '-15px';
                 }
                 lbl.textContent = c.label;
@@ -200,9 +214,13 @@ class DiagramEngine {
                 const pkt = document.createElement('div');
                 pkt.className = 'packet';
                 const pathLen = dir === 'vertical' ? c.length : c.length;
-                const pathDir = dir === 'vertical' ? `M 0 0 L 0 ${pathLen}` : `M 0 0 L ${pathLen} 0`;
+                const pathDir =
+                    dir === 'vertical'
+                        ? `M 0 0 L 0 ${pathLen}`
+                        : `M 0 0 L ${pathLen} 0`;
                 pkt.style.offsetPath = `path('${pathDir}')`;
-                if (c.packetDuration) pkt.style.animationDuration = c.packetDuration;
+                if (c.packetDuration)
+                    pkt.style.animationDuration = c.packetDuration;
                 el.appendChild(pkt);
             }
 
@@ -220,21 +238,34 @@ class DiagramEngine {
 
     _renderSvgPaths(stage) {
         for (const sp of this.config.svgPaths) {
-            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            const svg = document.createElementNS(
+                'http://www.w3.org/2000/svg',
+                'svg',
+            );
             svg.id = sp.id;
-            svg.setAttribute('viewBox', `0 0 ${this.config.stageWidth} ${this.config.stageHeight}`);
+            svg.setAttribute(
+                'viewBox',
+                `0 0 ${this.config.stageWidth} ${this.config.stageHeight}`,
+            );
             svg.classList.add('svg-path-layer');
-            svg.style.width = this.config.stageWidth + 'px';
-            svg.style.height = this.config.stageHeight + 'px';
+            svg.style.width = `${this.config.stageWidth}px`;
+            svg.style.height = `${this.config.stageHeight}px`;
             if (sp.opacity !== undefined) svg.style.opacity = sp.opacity;
 
-            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            const path = document.createElementNS(
+                'http://www.w3.org/2000/svg',
+                'path',
+            );
             path.setAttribute('d', sp.d);
             path.setAttribute('fill', 'none');
-            const strokeColor = sp.stroke.startsWith('--') ? `var(${sp.stroke})` : sp.stroke;
+            const strokeColor = sp.stroke.startsWith('--')
+                ? `var(${sp.stroke})`
+                : sp.stroke;
             path.setAttribute('stroke', strokeColor);
-            if (sp.strokeWidth) path.setAttribute('stroke-width', sp.strokeWidth);
-            if (sp.dashed) path.setAttribute('stroke-dasharray', sp.dashArray || '3,3');
+            if (sp.strokeWidth)
+                path.setAttribute('stroke-width', sp.strokeWidth);
+            if (sp.dashed)
+                path.setAttribute('stroke-dasharray', sp.dashArray || '3,3');
             svg.appendChild(path);
             stage.appendChild(svg);
         }
@@ -242,30 +273,48 @@ class DiagramEngine {
 
     _renderSvgOverlays(stage) {
         for (const ov of this.config.svgOverlays) {
-            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            const svg = document.createElementNS(
+                'http://www.w3.org/2000/svg',
+                'svg',
+            );
             svg.id = ov.id;
-            svg.setAttribute('viewBox', `0 0 ${this.config.stageWidth} ${this.config.stageHeight}`);
+            svg.setAttribute(
+                'viewBox',
+                `0 0 ${this.config.stageWidth} ${this.config.stageHeight}`,
+            );
             svg.classList.add('svg-overlay');
             if (ov.hidden) svg.style.display = 'none';
 
-            for (const p of (ov.paths || [])) {
-                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            for (const p of ov.paths || []) {
+                const path = document.createElementNS(
+                    'http://www.w3.org/2000/svg',
+                    'path',
+                );
                 path.id = p.id;
                 if (p.class) path.setAttribute('class', p.class);
                 path.setAttribute('d', p.d);
                 svg.appendChild(path);
             }
 
-            for (const pt of (ov.particles || [])) {
-                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            for (const pt of ov.particles || []) {
+                const circle = document.createElementNS(
+                    'http://www.w3.org/2000/svg',
+                    'circle',
+                );
                 if (pt.class) circle.setAttribute('class', pt.class);
                 circle.setAttribute('r', pt.r || 5);
-                const anim = document.createElementNS('http://www.w3.org/2000/svg', 'animateMotion');
+                const anim = document.createElementNS(
+                    'http://www.w3.org/2000/svg',
+                    'animateMotion',
+                );
                 anim.setAttribute('dur', pt.dur || '2s');
                 anim.setAttribute('repeatCount', 'indefinite');
                 if (pt.delay) anim.setAttribute('begin', pt.delay);
-                const mpath = document.createElementNS('http://www.w3.org/2000/svg', 'mpath');
-                mpath.setAttribute('href', '#' + pt.follow);
+                const mpath = document.createElementNS(
+                    'http://www.w3.org/2000/svg',
+                    'mpath',
+                );
+                mpath.setAttribute('href', `#${pt.follow}`);
                 anim.appendChild(mpath);
                 circle.appendChild(anim);
                 svg.appendChild(circle);
@@ -280,13 +329,15 @@ class DiagramEngine {
             const el = document.createElement('div');
             el.id = card.id;
             el.className = 'dns-card';
-            el.style.left = card.x + 'px';
-            el.style.top = card.y + 'px';
-            if (card.width) el.style.width = card.width + 'px';
+            el.style.left = `${card.x}px`;
+            el.style.top = `${card.y}px`;
+            if (card.width) el.style.width = `${card.width}px`;
             if (card.padding) el.style.padding = card.padding;
             if (card.fontSize) el.style.fontSize = card.fontSize;
 
-            const borderColor = card.borderColor.startsWith('--') ? `var(${card.borderColor})` : card.borderColor;
+            const borderColor = card.borderColor.startsWith('--')
+                ? `var(${card.borderColor})`
+                : card.borderColor;
             el.style.border = `2px solid ${borderColor}`;
 
             // Title
@@ -294,7 +345,9 @@ class DiagramEngine {
                 const title = document.createElement('div');
                 title.className = 'record-title';
                 if (card.titleColor) {
-                    title.style.color = card.titleColor.startsWith('--') ? `var(${card.titleColor})` : card.titleColor;
+                    title.style.color = card.titleColor.startsWith('--')
+                        ? `var(${card.titleColor})`
+                        : card.titleColor;
                 } else {
                     title.style.color = borderColor;
                 }
@@ -310,14 +363,17 @@ class DiagramEngine {
             }
 
             // Rows
-            for (const row of (card.rows || [])) {
+            for (const row of card.rows || []) {
                 const div = document.createElement('div');
                 if (typeof row === 'string') {
                     div.textContent = row;
                 } else {
                     if (row.id) div.id = row.id;
                     div.textContent = row.text;
-                    if (row.color) div.style.color = row.color.startsWith('--') ? `var(${row.color})` : row.color;
+                    if (row.color)
+                        div.style.color = row.color.startsWith('--')
+                            ? `var(${row.color})`
+                            : row.color;
                     if (row.bold) div.style.fontWeight = 'bold';
                     if (row.marginTop) div.style.marginTop = row.marginTop;
                     if (row.small) div.style.fontSize = '7px';
@@ -331,7 +387,9 @@ class DiagramEngine {
                 const footer = document.createElement('div');
                 footer.className = 'proxy-status';
                 if (card.footer.color) {
-                    footer.style.color = card.footer.color.startsWith('--') ? `var(${card.footer.color})` : card.footer.color;
+                    footer.style.color = card.footer.color.startsWith('--')
+                        ? `var(${card.footer.color})`
+                        : card.footer.color;
                 }
                 if (card.footer.icon) {
                     const iconSpan = document.createElement('span');
@@ -355,18 +413,18 @@ class DiagramEngine {
             const el = document.createElement('div');
             el.id = n.id;
             el.className = 'node';
-            el.style.left = n.x + 'px';
-            el.style.top = n.y + 'px';
+            el.style.left = `${n.x}px`;
+            el.style.top = `${n.y}px`;
 
             const img = document.createElement('img');
             img.src = `components/${n.icon}.svg`;
-            img.style.width = this.config.nodeSize + 'px';
-            img.style.height = this.config.nodeSize + 'px';
+            img.style.width = `${this.config.nodeSize}px`;
+            img.style.height = `${this.config.nodeSize}px`;
             if (n.iconStyle) img.style.filter = n.iconStyle;
             el.appendChild(img);
 
             const span = document.createElement('span');
-            span.style.fontSize = (this.config.nodeSize <= 50 ? 10 : 11) + 'px';
+            span.style.fontSize = `${this.config.nodeSize <= 50 ? 10 : 11}px`;
             span.textContent = n.label;
             el.appendChild(span);
 
@@ -386,8 +444,8 @@ class DiagramEngine {
             const el = document.createElement('div');
             el.id = xm.id;
             el.className = 'x-mark';
-            el.style.left = xm.x + 'px';
-            el.style.top = xm.y + 'px';
+            el.style.left = `${xm.x}px`;
+            el.style.top = `${xm.y}px`;
             el.textContent = '\u2715';
             stage.appendChild(el);
         }
@@ -399,7 +457,7 @@ class DiagramEngine {
         for (let i = 0; i < this.config.stepCount; i++) {
             const dot = document.createElement('div');
             dot.className = 'step-dot';
-            dot.id = 'sd-' + i;
+            dot.id = `sd-${i}`;
             container.appendChild(dot);
         }
         stage.appendChild(container);
@@ -427,7 +485,9 @@ class DiagramEngine {
 
         // Apply button color
         const colorVar = this.config.button.color;
-        const colorVal = colorVar.startsWith('--') ? `var(${colorVar})` : colorVar;
+        const colorVal = colorVar.startsWith('--')
+            ? `var(${colorVar})`
+            : colorVar;
         const btnBorder = this._resolveAlpha(colorVar, 0.4);
         const btnBg = this._resolveAlpha(colorVar, 0.08);
         const btnHoverBg = this._resolveAlpha(colorVar, 0.18);
@@ -461,17 +521,18 @@ class DiagramEngine {
 
     // ── Scenario API ──
 
-    step(index, text, style) {
-        style = style || 'active';
+    step(index, text, style = 'active') {
         const count = this.config.stepCount;
         for (let i = 0; i < count; i++) {
-            const dot = document.getElementById('sd-' + i);
+            const dot = document.getElementById(`sd-${i}`);
             dot.className = 'step-dot';
             if (i <= index) {
                 if (style === 'error' && i >= 1) dot.classList.add('error');
                 else if (style === 'warn' && i >= 1) dot.classList.add('warn');
-                else if (style === 'success' && i === index) dot.classList.add('success');
-                else if (style === 'success' && i >= 1 && i < index) dot.classList.add('warn');
+                else if (style === 'success' && i === index)
+                    dot.classList.add('success');
+                else if (style === 'success' && i >= 1 && i < index)
+                    dot.classList.add('warn');
                 else dot.classList.add('active');
             }
         }
@@ -486,7 +547,7 @@ class DiagramEngine {
     }
 
     async wait(ms) {
-        return new Promise(r => setTimeout(r, ms));
+        return new Promise((r) => setTimeout(r, ms));
     }
 
     fail(...nodeIds) {
@@ -505,30 +566,41 @@ class DiagramEngine {
         for (const id of markIds) {
             const el = document.getElementById(id);
             el.style.display = 'block';
-            el.style.animation = 'x-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards';
+            el.style.animation =
+                'x-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards';
         }
     }
 
     flash() {
         const v = document.getElementById('vignette');
         v.style.opacity = '1';
-        setTimeout(() => { v.style.opacity = '0'; }, 250);
+        setTimeout(() => {
+            v.style.opacity = '0';
+        }, 250);
     }
 
     shake() {
         const stage = this._stage;
         stage.classList.add('shaking');
-        stage.addEventListener('animationend', () => {
-            stage.classList.remove('shaking');
-        }, { once: true });
+        stage.addEventListener(
+            'animationend',
+            () => {
+                stage.classList.remove('shaking');
+            },
+            { once: true },
+        );
     }
 
     hidePackets() {
-        this._stage.querySelectorAll('.packet').forEach(p => p.style.display = 'none');
+        for (const p of this._stage.querySelectorAll('.packet')) {
+            p.style.display = 'none';
+        }
     }
 
     hidePulses() {
-        this._stage.querySelectorAll('.pulse').forEach(p => p.style.display = 'none');
+        for (const p of this._stage.querySelectorAll('.pulse')) {
+            p.style.display = 'none';
+        }
     }
 
     failLinks(...linkIds) {
@@ -542,14 +614,17 @@ class DiagramEngine {
     }
 
     stageGlow(style) {
-        this._stage.classList.remove('stage-error', 'stage-warn', 'stage-success');
+        this._stage.classList.remove(
+            'stage-error',
+            'stage-warn',
+            'stage-success',
+        );
         if (style && style !== 'none') {
-            this._stage.classList.add('stage-' + style);
+            this._stage.classList.add(`stage-${style}`);
         }
     }
 
-    sendPacket(linkId, opts) {
-        opts = opts || {};
+    sendPacket(linkId, opts = {}) {
         const link = document.getElementById(linkId);
         const pkt = document.createElement('div');
         pkt.className = 'packet';
@@ -566,9 +641,9 @@ class DiagramEngine {
         const isVertical = link.classList.contains('connection-v');
         let pathLen;
         if (isVertical) {
-            pathLen = parseInt(link.style.height);
+            pathLen = Number.parseInt(link.style.height);
         } else {
-            pathLen = parseInt(link.style.width);
+            pathLen = Number.parseInt(link.style.width);
         }
 
         let pathD;
@@ -592,11 +667,12 @@ class DiagramEngine {
         return pkt;
     }
 
-    highlightCard(cardId, opts) {
-        opts = opts || {};
+    highlightCard(cardId, opts = {}) {
         const card = document.getElementById(cardId);
         if (opts.borderColor) {
-            const c = opts.borderColor.startsWith('--') ? `var(${opts.borderColor})` : opts.borderColor;
+            const c = opts.borderColor.startsWith('--')
+                ? `var(${opts.borderColor})`
+                : opts.borderColor;
             card.style.borderColor = c;
         }
         if (opts.flash) {
@@ -611,12 +687,13 @@ class DiagramEngine {
         document.getElementById(cardId).classList.add('dimmed');
     }
 
-    setText(fieldId, text, opts) {
-        opts = opts || {};
+    setText(fieldId, text, opts = {}) {
         const el = document.getElementById(fieldId);
         el.textContent = text;
         if (opts.color) {
-            el.style.color = opts.color.startsWith('--') ? `var(${opts.color})` : opts.color;
+            el.style.color = opts.color.startsWith('--')
+                ? `var(${opts.color})`
+                : opts.color;
         }
         if (opts.highlight) {
             el.classList.add('value-highlight');
@@ -637,7 +714,9 @@ class DiagramEngine {
     }
 
     setLiveDotDown() {
-        document.getElementById('live-indicator').classList.add('indicator-down');
+        document
+            .getElementById('live-indicator')
+            .classList.add('indicator-down');
     }
 
     show(id) {
