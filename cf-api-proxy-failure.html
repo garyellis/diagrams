@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloudflare Outage Animation</title>
+    <link rel="stylesheet" href="diagram-engine.css">
+</head>
+<body>
+    <script src="diagram-engine.js"></script>
+    <script>
+        const engine = new DiagramEngine({
+            stageWidth: 940,
+            stageHeight: 560,
+            nodeSize: 60,
+            vignetteColor: 'rgba(229, 115, 115, 0.35)',
+
+            legend: [
+                { color: '--green', label: 'Data Traffic' },
+                { color: '--cf-orange', label: 'Control Signal' },
+                { color: '--admin-blue', label: 'Admin Request' },
+            ],
+
+            nodes: [
+                { id: 'user', label: 'User', icon: 'user', x: 70, y: 330,
+                  tooltip: 'End user browsing the site via your domain.' },
+                { id: 'edge', label: 'CF Edge', icon: 'edge_up', x: 420, y: 330,
+                  tooltip: 'Global Network: WAF, CDN, and Security Proxy.' },
+                { id: 'origin', label: 'Origin', icon: 'origin', x: 770, y: 330,
+                  tooltip: 'The Customer Server where the application is hosted.' },
+                { id: 'api', label: 'CF API', icon: 'api_up', x: 420, y: 100,
+                  tooltip: 'Control Plane: Manages DNS, Page Rules, and Settings.' },
+                { id: 'admin', label: 'Domain Admin', icon: 'admin', x: 770, y: 100,
+                  tooltip: 'Site Administrator managing Cloudflare settings.' },
+            ],
+
+            connections: [
+                { id: 'link-user-edge', x: 150, y: 360, length: 270, packet: true,
+                  label: 'Data Plane', labelStyle: { left: '100px', top: '-15px' } },
+                { id: 'link-edge-origin', x: 500, y: 360, length: 270, packet: true },
+                { id: 'link-admin-api', x: 500, y: 130, length: 270,
+                  label: 'Management', labelStyle: { left: '100px', top: '-15px' } },
+                { id: 'link-api-edge', x: 470, y: 160, length: 170, direction: 'vertical',
+                  pulse: true, label: 'Control Plane',
+                  labelStyle: { left: '10px', top: '80px', transform: 'rotate(90deg)', transformOrigin: 'left top' } },
+            ],
+
+            dnsCards: [
+                { id: 'dns-record', x: 490, y: 185, width: 140, padding: '10px', fontSize: '11px',
+                  borderColor: '--dns-purple',
+                  title: 'DNS Record', titleIcon: '\uD83D\uDD12',
+                  rows: [
+                      'TYPE: A',
+                      { id: 'dns-name-display', text: 'NAME: app.io' },
+                      { id: 'record-value', text: 'VALUE: CF_EDGE_IP', color: '--text-muted', bold: true },
+                  ],
+                  footer: { icon: '\u2601\uFE0F', text: 'Proxied (Orange)', color: '--cf-orange' }
+                },
+            ],
+
+            xMarks: [
+                { id: 'x-edge', x: 430, y: 340 },
+                { id: 'x-api', x: 430, y: 110 },
+                { id: 'x-admin', x: 620, y: 110 },
+            ],
+
+            button: { label: 'Play Outage Scenario', color: '--red' },
+            stepCount: 5,
+            initialStatus: '1: Normal Operation. API manages DNS record pointing to Edge.',
+        });
+
+        engine.onScenario(async (e) => {
+            // Step 1 — Normal Operation
+            e.step(0, "1: Normal Operation. API manages DNS record pointing to Edge.");
+            await e.wait(3000);
+
+            // Step 2 — Edge fails
+            e.step(1, "2: Cloudflare Edge goes DOWN. Traffic is blackholed.", 'error');
+            e.setLiveDotDown();
+            e.fail('edge');
+            e.showX('x-edge');
+            e.flash();
+            e.shake();
+            e.stageGlow('error');
+            e.hidePackets();
+            e.failLinks('link-user-edge', 'link-edge-origin');
+            await e.wait(3000);
+
+            // Step 3 — API fails
+            e.step(2, "3: Control Plane (API) also goes DOWN. DNS management is frozen.", 'error');
+            e.fail('api');
+            e.showX('x-api');
+            e.flash();
+            e.shake();
+            e.hidePulses();
+            e.failLinks('link-api-edge');
+            e.el('link-api-edge').style.opacity = '0.15';
+            await e.wait(3000);
+
+            // Step 4 — Admin attempt
+            e.step(3, "4: Admin attempts to update DNS to point 'app.io' to Origin...", 'error');
+            e.sendPacket('link-admin-api', { color: 'var(--admin-blue)', reverse: true, duration: '1.5s' });
+            await e.wait(1000);
+            e.showX('x-admin');
+
+            // Step 5 — Failure
+            e.step(4, "5: <span style='color:var(--red)'>FAILED.</span> API down. Proxy cannot be disabled. Traffic trapped.", 'error');
+            e.flash();
+            e.highlightCard('dns-record', { borderColor: '--red', flash: true, scale: 1.08 });
+            await e.wait(400);
+            e.resetScale('dns-record');
+        });
+
+        engine.init();
+    </script>
+</body>
+</html>

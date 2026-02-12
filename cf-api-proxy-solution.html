@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resilient Architecture: Multi-Cloud Failover</title>
+    <link rel="stylesheet" href="diagram-engine.css">
+</head>
+<body>
+    <script src="diagram-engine.js"></script>
+    <script>
+        const engine = new DiagramEngine({
+            stageWidth: 940,
+            stageHeight: 560,
+            nodeSize: 50,
+            legendPosition: 'top-right',
+            vignetteColor: 'rgba(255, 183, 77, 0.3)',
+
+            legend: [
+                { color: '--green', label: 'Traffic' },
+                { color: '--failover-teal', label: 'Failover Path' },
+                { color: '--azure-teal', label: 'Azure' },
+                { color: '--cf-orange', label: 'Cloudflare' },
+            ],
+
+            groups: [
+                { id: 'azure-group', label: 'Azure', color: '--azure-teal',
+                  x: 140, y: 40, width: 280, height: 120,
+                  bg: 'var(--azure-group-bg)' },
+                { id: 'cf-group', label: 'Cloudflare', color: '--cf-orange',
+                  x: 370, y: 190, width: 350, height: 220,
+                  bg: 'var(--cf-group-bg)' },
+            ],
+
+            nodes: [
+                { id: 'admin', label: 'Admin', icon: 'admin', x: 440, y: 60 },
+                { id: 'azure-portal', label: 'Portal', icon: 'api_up', x: 300, y: 60,
+                  iconStyle: 'hue-rotate(150deg)' },
+                { id: 'azure-dns', label: 'DNS', icon: 'api_up', x: 160, y: 60,
+                  iconStyle: 'hue-rotate(150deg)' },
+                { id: 'cf-api', label: 'API', icon: 'api_up', x: 390, y: 210 },
+                { id: 'cf-dns', label: 'DNS', icon: 'api_up', x: 500, y: 210 },
+                { id: 'edge', label: 'Edge', icon: 'edge_up', x: 445, y: 320 },
+                { id: 'user', label: 'User', icon: 'user', x: 60, y: 320 },
+                { id: 'origin', label: 'Origin Host', icon: 'origin', x: 820, y: 320 },
+            ],
+
+            connections: [
+                { id: 'link-admin-portal', x: 350, y: 85, length: 140,
+                  thin: true, slow: true, reverseFlow: true,
+                  label: 'Management', labelStyle: { left: '30px', top: '-15px' } },
+                { id: 'link-portal-dns', x: 210, y: 85, length: 140,
+                  color: '--azure-teal', reverseFlow: true },
+                { id: 'link-user-edge', x: 150, y: 345, length: 295, packet: true,
+                  packetDuration: '3s',
+                  label: 'Data Plane', labelStyle: { left: '110px', top: '-15px' } },
+                { id: 'link-edge-origin', x: 545, y: 345, length: 275, packet: true,
+                  packetDuration: '1.5s' },
+            ],
+
+            svgPaths: [
+                { id: 'link-dns-target',
+                  d: 'M 210 110 V 295 Q 210 305 220 305 H 620 Q 630 305 630 295 V 270',
+                  stroke: '--green', strokeWidth: 1.5, dashed: true, opacity: 0.4 },
+            ],
+
+            svgOverlays: [
+                { id: 'bypass-svg', hidden: true,
+                  paths: [{ id: 'bypass-arc', class: 'bypass-path',
+                            d: 'M 110 345 Q 470 520 870 345' }],
+                  particles: [
+                      { follow: 'bypass-arc', r: 5, dur: '2s', class: 'bypass-packet' },
+                      { follow: 'bypass-arc', r: 4, dur: '2s', delay: '0.5s', class: 'bypass-packet-dim' },
+                      { follow: 'bypass-arc', r: 3, dur: '2s', delay: '1.0s', class: 'bypass-packet-dim' },
+                      { follow: 'bypass-arc', r: 3, dur: '2s', delay: '1.5s', class: 'bypass-packet-dim' },
+                  ]
+                },
+            ],
+
+            dnsCards: [
+                { id: 'dns-record-azure', x: 140, y: 140, width: 140,
+                  borderColor: '--azure-teal',
+                  title: 'Azure DNS', titleIcon: '\u2601\uFE0F',
+                  rows: [
+                      { text: 'TYPE: CNAME', small: true, dim: true },
+                      { id: 'az-dns-name', text: 'NAME: app.io' },
+                      { id: 'az-target', text: '...', color: '--cf-orange', bold: true, marginTop: '4px' },
+                  ],
+                },
+                { id: 'dns-record-cf', x: 630, y: 210, width: 140,
+                  borderColor: '--cf-orange',
+                  title: 'Cloudflare DNS', titleIcon: '\u2601\uFE0F',
+                  rows: [
+                      { text: 'TYPE: A (PROXIED)', small: true, dim: true },
+                      { id: 'cf-dns-name', text: '...' },
+                      { text: 'origin ip', color: '--text-muted', bold: true, marginTop: '4px' },
+                  ],
+                  footer: { icon: '\u2601\uFE0F', text: 'Proxied', color: '--cf-orange' }
+                },
+            ],
+
+            xMarks: [
+                { id: 'x-edge', x: 475, y: 325 },
+                { id: 'x-api', x: 420, y: 215 },
+                { id: 'x-cf-dns', x: 530, y: 215 },
+            ],
+
+            button: { label: 'Demonstrate Failover', color: '--azure-teal' },
+            stepCount: 5,
+            initialStatus: '1: Normal Operation. Azure DNS points traffic to Cloudflare.',
+        });
+
+        engine.onInit((e) => {
+            e.setText('cf-dns-name', 'NAME: app.io.cdn.cloudflare.net');
+            e.setText('az-target', 'app.io.cdn.cloudflare.net');
+        });
+
+        engine.onScenario(async (e) => {
+            // Step 1 — Normal Operation
+            e.step(0, "1: Normal Operation. Azure DNS points traffic to Cloudflare.");
+            await e.wait(2500);
+
+            // Step 2 — Cloudflare outage
+            e.step(1, "2: CLOUDFLARE OUTAGE. Edge & API services are down (CF nameservers continue answering DNS queries).", 'warn');
+            e.fail('edge', 'cf-api');
+            e.showX('x-edge', 'x-api');
+            e.flash();
+            e.shake();
+            e.stageGlow('warn');
+            e.dim('cf-dns');
+            e.dimCard('dns-record-cf');
+            e.hidePackets();
+            e.setLiveDot('--cf-orange');
+            await e.wait(3000);
+
+            // Step 3 — Admin logs in
+            e.step(2, "3: Admin logs into Azure Portal (Unaffected by CF outage).", 'warn');
+            e.setLiveDot('--green');
+            e.sendPacket('link-admin-portal', { color: 'var(--admin-blue)', reverse: true, duration: '1s' });
+            await e.wait(1500);
+
+            // Step 4 — DNS update
+            e.step(3, "4: Admin updates Azure CNAME to point directly to Origin Host.", 'warn');
+            e.highlightCard('dns-record-azure', { borderColor: '--failover-teal', scale: 1.08 });
+            await e.wait(400);
+            e.setText('az-target', 'origin-server.io', { color: '--failover-teal', highlight: true });
+            e.resetScale('dns-record-azure');
+            await e.wait(800);
+            e.fadeOut('link-dns-target');
+            await e.wait(700);
+
+            // Step 5 — Failover success
+            e.step(4, "5: SUCCESS. Traffic is redirected via Failover Path.", 'success');
+            e.stageGlow('success');
+            e.setLiveDot('--failover-teal');
+            e.show('bypass-svg');
+            e.fadeOut('link-user-edge');
+            e.fadeOut('link-edge-origin');
+            e.el('cf-group').style.opacity = '0.05';
+        });
+
+        engine.init();
+    </script>
+</body>
+</html>
