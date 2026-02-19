@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multi-WAF Resiliency: Cloudflare + Azure Front Door</title>
+  <link rel="stylesheet" href="diagram-engine.css">
+</head>
+
+<body>
+  <script src="diagram-engine.js"></script>
+  <script>
+    const engine = new DiagramEngine({
+      stageWidth: 940,
+      stageHeight: 580,
+      nodeSize: 50,
+      legendPosition: 'top-left',
+      vignetteColor: 'rgba(255, 183, 77, 0.3)',
+
+      legend: [
+        { color: '--green', label: 'Traffic' },
+        { color: '--failover-teal', label: 'Failover Path' },
+        { color: '--azure-teal', label: 'Azure' },
+        { color: '--cf-orange', label: 'Cloudflare' },
+      ],
+
+      groups: [
+        {
+          id: 'cf-group', label: 'Cloudflare', color: '--cf-orange',
+          x: 160, y: 50, width: 580, height: 140,
+          bg: 'var(--cf-group-bg)'
+        },
+        {
+          id: 'azure-group', label: 'Azure', color: '--azure-teal',
+          x: 160, y: 270, width: 580, height: 190,
+          bg: 'var(--azure-group-bg)'
+        },
+      ],
+
+      nodes: [
+        {
+          id: 'user', label: 'User', icon: 'user', x: 25, y: 85,
+          tooltip: 'End users accessing the application'
+        },
+        {
+          id: 'cf-edge', label: 'WAF', icon: 'edge_up', x: 210, y: 80,
+          tooltip: 'Cloudflare WAF — filters and protects incoming traffic'
+        },
+        {
+          id: 'origin', label: 'Origin', icon: 'origin', x: 800, y: 80,
+          tooltip: 'Origin server hosting the application'
+        },
+        {
+          id: 'admin', label: 'Admin', icon: 'admin', x: 25, y: 335,
+          tooltip: 'Operations team member with Azure access'
+        },
+        {
+          id: 'azure-portal', label: 'Portal', icon: 'cloud/cloud', x: 195, y: 335,
+          tooltip: 'Azure management portal'
+        },
+        {
+          id: 'afd', label: 'Front Door', icon: 'networking/cdn', x: 400, y: 335,
+          iconStyle: 'hue-rotate(150deg)',
+          tooltip: 'Azure Front Door — Secondary WAF'
+        },
+      ],
+
+      connections: [
+        {
+          id: 'link-user-edge', x: 75, y: 110, length: 185, packet: true,
+          packetDuration: '3s',
+          label: 'User Traffic', labelStyle: { left: '45px', top: '-15px' }
+        },
+        {
+          id: 'link-edge-origin', x: 260, y: 110, length: 590, packet: true,
+          packetDuration: '1.5s'
+        },
+        {
+          id: 'link-admin-portal', x: 75, y: 360, length: 170,
+          thin: true, slow: true,
+          label: 'Management', labelStyle: { left: '50px', top: '-15px' }
+        },
+        {
+          id: 'link-portal-dns', x: 245, y: 290, length: 50,
+          direction: 'vertical', color: '--azure-teal', reverseFlow: true
+        },
+      ],
+
+      svgPaths: [
+        {
+          id: 'link-dns-target',
+          d: 'M 245 205 Q 248 155 255 120',
+          stroke: '--green', strokeWidth: 2, dashed: true, opacity: 0.6
+        },
+      ],
+
+      svgOverlays: [
+        {
+          id: 'bypass-svg', hidden: true,
+          paths: [
+            {
+              id: 'bypass-arc-in', class: 'bypass-path',
+              d: 'M 75 110 C 300 437 600 437 850 110'
+            }
+          ],
+          particles: [
+            { follow: 'bypass-arc-in', r: 5, dur: '2s', class: 'bypass-packet' },
+            { follow: 'bypass-arc-in', r: 4, dur: '2s', delay: '0.5s', class: 'bypass-packet-dim' },
+            { follow: 'bypass-arc-in', r: 3, dur: '2s', delay: '1.0s', class: 'bypass-packet-dim' },
+            { follow: 'bypass-arc-out', r: 5, dur: '2s', delay: '0.3s', class: 'bypass-packet' },
+            { follow: 'bypass-arc-out', r: 4, dur: '2s', delay: '0.8s', class: 'bypass-packet-dim' },
+            { follow: 'bypass-arc-out', r: 3, dur: '2s', delay: '1.3s', class: 'bypass-packet-dim' },
+          ]
+        },
+      ],
+
+      dnsCards: [
+        {
+          id: 'dns-record-azure', x: 175, y: 205, width: 140,
+          borderColor: '--azure-teal',
+          title: 'Azure DNS', titleIcon: '\u2601\uFE0F',
+          rows: [
+            { text: 'TYPE: CNAME', small: true, dim: true },
+            { id: 'az-dns-name', text: 'NAME: app.io' },
+            { id: 'az-target', text: '...', color: '--cf-orange', bold: true, marginTop: '4px' },
+          ],
+        },
+        {
+          id: 'dns-record-cf', x: 490, y: 68, width: 160,
+          borderColor: '--cf-orange',
+          title: 'Cloudflare DNS', titleIcon: '\u2601\uFE0F',
+          rows: [
+            { text: 'TYPE: A (PROXIED)', small: true, dim: true },
+            { id: 'cf-dns-name', text: '...' },
+            { text: 'TARGET: Origin IP', color: '--text-muted', bold: true, marginTop: '4px' },
+          ],
+          footer: { icon: '\u2601\uFE0F', text: 'Proxied', color: '--cf-orange' }
+        },
+        {
+          id: 'dns-record-afd', x: 545, y: 310, width: 160,
+          borderColor: '--azure-teal',
+          title: 'Azure Front Door', titleIcon: '\uD83C\uDF10',
+          rows: [
+            { text: 'TYPE: Endpoint', small: true, dim: true },
+            { id: 'afd-dns-name', text: '...' },
+            { text: 'Route: Origin Group \u2192 Origin', color: '--text-muted', bold: true, marginTop: '4px' },
+          ],
+          footer: { icon: '\u2601\uFE0F', text: 'Proxied', color: '--azure-teal' }
+        },
+      ],
+
+      xMarks: [
+        { id: 'x-edge', x: 240, y: 85 },
+      ],
+
+      button: { label: 'Demonstrate Failover', color: '--azure-teal' },
+      stepCount: 5,
+      initialStatus: 'All traffic is flowing normally through Cloudflare.',
+    });
+
+    engine.onInit((e) => {
+      e.setText('cf-dns-name', 'NAME: app.io.cdn.cloudflare.net');
+      e.setText('az-target', 'app.io.cdn.cloudflare.net');
+      e.setText('afd-dns-name', 'NAME: app.io.azurefd.net');
+      const legend = e.el('legend');
+      legend.style.top = 'auto';
+      legend.style.bottom = '20px';
+      legend.style.left = 'auto';
+      legend.style.right = '20px';
+    });
+
+    engine.onScenario(async (e) => {
+      // Step 1 — Normal Operation
+      e.step(0, 'All traffic is flowing normally through Cloudflare.');
+      await e.wait(3500);
+
+      // Step 2 — Cloudflare outage
+      e.step(1, 'Cloudflare outage detected — users cannot reach the application.', 'warn');
+      e.fail('cf-edge');
+      e.showX('x-edge');
+      e.flash();
+      e.shake();
+      e.stageGlow('warn');
+      e.dimCard('dns-record-cf');
+      e.hidePackets();
+      e.setLiveDot('--cf-orange');
+      await e.wait(3000);
+
+      // Step 3 — Admin logs in
+      e.step(2, 'Admin accesses Azure Portal to begin recovery.', 'warn');
+      e.setLiveDot('--green');
+      e.sendPacket('link-admin-portal', { color: 'var(--admin-blue)', duration: '1s' });
+      await e.wait(2000);
+
+      // Step 4 — DNS update
+      e.step(3, 'Admin switches DNS to route traffic through Azure Front Door.', 'warn');
+      e.highlightCard('dns-record-azure', { borderColor: '--failover-teal', scale: 1.08 });
+      await e.wait(600);
+      e.setText('az-target', 'app.io.azurefd.net', { color: '--failover-teal', highlight: true });
+      e.resetScale('dns-record-azure');
+      await e.wait(1200);
+      e.fadeOut('link-dns-target');
+      await e.wait(700);
+
+      // Step 5 — Failover success
+      e.step(4, 'Traffic restored — now flowing through Azure Front Door.', 'success');
+      e.stageGlow('success');
+      e.setLiveDot('--failover-teal');
+      e.show('bypass-svg');
+      e.fadeOut('link-user-edge');
+      e.fadeOut('link-edge-origin');
+      e.el('cf-group').style.opacity = '0.2';
+      e.highlightCard('dns-record-afd', { borderColor: '--failover-teal', flash: true });
+    });
+
+    engine.init();
+  </script>
+</body>
+
+</html>
